@@ -1,1 +1,2127 @@
-a
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cortes Azalea">
+  <title>Cortes de Caja · Flor de Azalea</title>
+<style>
+/* ====================================================
+   VARIABLES Y RESET
+   ==================================================== */
+:root {
+  --bg:          #0d1117;
+  --surface:     #161b22;
+  --surface2:    #21262d;
+  --border:      #30363d;
+  --border-f:    #58a6ff;
+  --text:        #e6edf3;
+  --muted:       #8b949e;
+  --green:       #3fb950;
+  --green-dk:    #238636;
+  --green-soft:  rgba(63,185,80,.15);
+  --red:         #f85149;
+  --red-soft:    rgba(248,81,73,.15);
+  --amber:       #e3b341;
+  --amber-soft:  rgba(227,179,65,.15);
+  --blue:        #58a6ff;
+  --blue-soft:   rgba(88,166,255,.15);
+  --purple:      #bc8cff;
+  --radius:      12px;
+  --radius-sm:   8px;
+  --shadow:      0 4px 24px rgba(0,0,0,.4);
+  --nav-h:       64px;
+  --header-h:    56px;
+  --trans:       all .18s ease;
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+input, select, textarea { font-family: inherit; font-size: 16px; outline: none; }
+a { color: var(--blue); }
+.hidden { display: none !important; }
+
+/* ====================================================
+   LOADING OVERLAY
+   ==================================================== */
+#loadingOverlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(13,17,23,.85);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+  backdrop-filter: blur(4px);
+}
+.spinner {
+  width: 44px; height: 44px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loadingOverlay p { color: var(--muted); font-size: 14px; }
+
+/* ====================================================
+   TOAST NOTIFICATION
+   ==================================================== */
+#toast {
+  position: fixed; bottom: calc(var(--nav-h) + 16px); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 998; padding: 12px 20px;
+  border-radius: var(--radius); font-size: 14px; font-weight: 500;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: var(--trans);
+  max-width: 90vw; text-align: center;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.ok   { background: var(--green-dk); color: #fff; }
+#toast.err  { background: var(--red);      color: #fff; }
+#toast.info { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+/* ====================================================
+   LOGIN SCREEN
+   ==================================================== */
+#loginScreen {
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 36px 28px;
+  width: 100%; max-width: 360px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.login-logo {
+  font-size: 48px; margin-bottom: 8px;
+  filter: drop-shadow(0 0 12px rgba(63,185,80,.5));
+}
+.login-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.login-sub   { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+.login-card .field { margin-bottom: 16px; text-align: left; }
+.login-card label  { display: block; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
+.login-card select,
+.login-card input[type=password] {
+  width: 100%; padding: 14px 16px;
+  background: var(--surface2); color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 17px; appearance: none;
+  transition: var(--trans);
+}
+.login-card select:focus,
+.login-card input[type=password]:focus { border-color: var(--border-f); }
+.pin-wrap { position: relative; }
+.pin-wrap input { letter-spacing: 6px; }
+#btnLogin {
+  width: 100%; padding: 16px;
+  background: var(--green-dk); color: #fff;
+  border-radius: var(--radius-sm); font-size: 16px; font-weight: 700;
+  margin-top: 8px;
+  transition: var(--trans);
+  active-scale: .97;
+}
+#btnLogin:active { transform: scale(.97); background: var(--green); }
+.login-badge {
+  margin-top: 20px; font-size: 11px;
+  color: var(--muted); opacity: .7;
+}
+
+/* ====================================================
+   APP CONTAINER
+   ==================================================== */
+#appContainer {
+  display: flex; flex-direction: column;
+  height: 100dvh; overflow: hidden;
+}
+
+/* ====================================================
+   HEADER
+   ==================================================== */
+#appHeader {
+  flex-shrink: 0;
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 8px;
+  z-index: 10;
+}
+.header-logo { font-size: 22px; flex-shrink: 0; }
+.header-selects { display: flex; flex: 1; gap: 6px; min-width: 0; }
+.hdr-select {
+  flex: 1; min-width: 0;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 7px 10px; font-size: 13px; appearance: none;
+}
+.hdr-select:focus { border-color: var(--border-f); }
+.hdr-user {
+  flex-shrink: 0;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 50%; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer;
+}
+
+/* ====================================================
+   TAB PANELS
+   ==================================================== */
+#tabPanels {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.tab-panel {
+  display: none;
+  padding: 16px 14px calc(var(--nav-h) + 16px);
+  min-height: calc(100dvh - var(--header-h) - var(--nav-h));
+}
+.tab-panel.active { display: block; }
+
+/* ====================================================
+   BOTTOM NAVIGATION
+   ==================================================== */
+#bottomNav {
+  flex-shrink: 0;
+  height: var(--nav-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px; background: none; padding: 6px 4px;
+  color: var(--muted); transition: var(--trans);
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: var(--radius-sm);
+}
+.nav-btn .nav-icon { font-size: 22px; line-height: 1; transition: var(--trans); }
+.nav-btn.active { color: var(--green); }
+.nav-btn.active .nav-icon { transform: scale(1.1); }
+.nav-btn:active { background: var(--surface2); }
+
+/* ====================================================
+   SHARED COMPONENTS
+   ==================================================== */
+.section-title {
+  font-size: 12px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .8px;
+  margin: 20px 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title:first-child { margin-top: 0; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block; font-size: 11px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase;
+  letter-spacing: .6px; margin-bottom: 6px;
+}
+.field input[type=text],
+.field input[type=number],
+.field input[type=date],
+.field input[type=time],
+.field select,
+.field textarea {
+  width: 100%; padding: 13px 14px;
+  background: var(--surface2); color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 16px; transition: var(--trans);
+  appearance: none;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus { border-color: var(--border-f); background: var(--bg); }
+.field input[readonly],
+.field input.locked { color: var(--muted); background: var(--bg); }
+.field textarea { resize: vertical; min-height: 100px; }
+
+/* Botones */
+.btn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 14px 18px;
+  border-radius: var(--radius-sm); font-size: 15px; font-weight: 700;
+  transition: var(--trans); width: 100%; min-height: 50px;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer; user-select: none;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--green-dk); color: #fff; }
+.btn-primary:active { background: var(--green); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:active { border-color: var(--border-f); }
+.btn-danger  { background: var(--red-soft); color: var(--red); border: 1px solid var(--red); }
+.btn-blue    { background: var(--blue-soft); color: var(--blue); border: 1px solid var(--blue); }
+.btn-amber   { background: var(--amber-soft); color: var(--amber); border: 1px solid var(--amber); }
+.btn-sm { padding: 8px 14px; font-size: 13px; min-height: 36px; width: auto; }
+
+.btn-row { display: flex; gap: 10px; margin-top: 10px; }
+.btn-row .btn { flex: 1; }
+
+/* Kpis / métricas */
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.kpi-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+  text-align: center;
+}
+.kpi-label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.kpi-value { font-size: 20px; font-weight: 800; margin-top: 4px; }
+.kpi-card.green  { border-color: var(--green); background: var(--green-soft); }
+.kpi-card.red    { border-color: var(--red);   background: var(--red-soft); }
+.kpi-card.amber  { border-color: var(--amber); background: var(--amber-soft); }
+.kpi-card.blue   { border-color: var(--blue);  background: var(--blue-soft); }
+
+/* Tags / badges */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: .3px;
+}
+.badge-green { background: var(--green-soft); color: var(--green); }
+.badge-red   { background: var(--red-soft);   color: var(--red);   }
+.badge-amber { background: var(--amber-soft); color: var(--amber); }
+.badge-blue  { background: var(--blue-soft);  color: var(--blue);  }
+
+/* ====================================================
+   GASTO ROW (cuadre)
+   ==================================================== */
+.gasto-list { margin: 8px 0; }
+.gasto-row {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+  margin-bottom: 8px; position: relative;
+}
+.gasto-row-fields { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.gasto-nombre {
+  flex: 2; min-width: 120px;
+  padding: 10px 12px; background: var(--bg); color: var(--text);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px; text-transform: uppercase;
+}
+.gasto-nombre:focus { border-color: var(--border-f); }
+.gasto-monto {
+  flex: 1; min-width: 90px;
+  padding: 10px 12px; background: var(--bg); color: var(--amber);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 700; text-align: right;
+}
+.gasto-monto:focus { border-color: var(--border-f); }
+.gasto-cat {
+  flex: 1.5; min-width: 140px;
+  padding: 10px 12px; background: var(--bg); color: var(--text);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; appearance: none;
+}
+.gasto-cat:focus { border-color: var(--border-f); }
+.gasto-del {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 20px; padding: 6px;
+  line-height: 1; flex-shrink: 0;
+  border-radius: 6px; transition: var(--trans);
+}
+.gasto-del:active { color: var(--red); background: var(--red-soft); }
+
+/* ====================================================
+   SEMANA CARDS
+   ==================================================== */
+.dia-card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  margin-bottom: 10px; cursor: pointer;
+  transition: var(--trans);
+}
+.dia-card:active { border-color: var(--border-f); transform: scale(.99); }
+.dia-card.vacio  { border-style: dashed; opacity: .7; }
+.dia-card.alert  { border-color: var(--red); background: var(--red-soft); }
+.dia-head { display: flex; justify-content: space-between; align-items: center; }
+.dia-fecha { font-weight: 700; font-size: 15px; }
+.dia-meta  { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.dia-stat  { font-size: 12px; color: var(--muted); }
+.dia-stat span { color: var(--text); font-weight: 600; }
+
+/* ====================================================
+   COMPARATIVA TABLE
+   ==================================================== */
+.comp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.comp-table th {
+  background: var(--surface2); color: var(--muted);
+  text-transform: uppercase; font-size: 10px; letter-spacing: .5px;
+  padding: 8px; text-align: center; border-bottom: 1px solid var(--border);
+}
+.comp-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: center; }
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-table .dia-name { text-align: left; font-weight: 600; }
+.pct-pos { color: var(--green); font-weight: 700; }
+.pct-neg { color: var(--red);   font-weight: 700; }
+.pct-neu { color: var(--muted); }
+
+/* ====================================================
+   ANALYSIS BARS
+   ==================================================== */
+.bar-row { margin-bottom: 12px; }
+.bar-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.bar-cat   { font-size: 13px; font-weight: 600; }
+.bar-amt   { font-size: 13px; color: var(--amber); font-weight: 700; }
+.bar-track { background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
+.bar-fill  { height: 100%; background: linear-gradient(90deg, var(--green-dk), var(--green)); border-radius: 4px; transition: width .6s ease; }
+
+/* ====================================================
+   ALERT PULSE (descuadres altos)
+   ==================================================== */
+@keyframes pulse-alert {
+  0%,100% { background-color: rgba(248,81,73,.12); }
+  50%      { background-color: rgba(248,81,73,.28); }
+}
+.pulsing { animation: pulse-alert 1.6s ease-in-out infinite; }
+
+/* ====================================================
+   MODAL
+   ==================================================== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(3px);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px;
+}
+.modal-overlay.center { align-items: center; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%; max-width: 520px; max-height: 90dvh;
+  overflow-y: auto; padding: 24px 20px;
+  box-shadow: var(--shadow);
+}
+.modal-overlay.center .modal-box { border-radius: var(--radius); }
+.modal-title {
+  font-size: 17px; font-weight: 700; margin-bottom: 16px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-close {
+  background: none; font-size: 22px; color: var(--muted);
+  cursor: pointer; padding: 2px 6px; border-radius: 6px;
+  transition: var(--trans);
+}
+.modal-close:active { background: var(--surface2); color: var(--text); }
+
+/* ====================================================
+   SEARCH BAR
+   ==================================================== */
+.search-bar {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.search-bar input {
+  flex: 1; padding: 12px 14px;
+  background: var(--surface2); color: var(--text);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px;
+}
+.search-bar input:focus { border-color: var(--border-f); }
+.search-bar button { flex-shrink: 0; }
+
+/* ====================================================
+   SEMANA TOTALS BAR
+   ==================================================== */
+.semana-totals {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  margin-bottom: 14px; display: grid;
+  grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;
+}
+.st-item .st-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+.st-item .st-val { font-size: 16px; font-weight: 800; margin-top: 3px; }
+
+/* ====================================================
+   RESULTADO BÚSQUEDA GASTOS
+   ==================================================== */
+.search-result-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+  margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.sri-left .sri-nombre { font-weight: 600; font-size: 14px; }
+.sri-left .sri-fecha  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.sri-right { font-weight: 800; color: var(--amber); font-size: 15px; }
+
+/* ====================================================
+   WHATSAPP REPORT
+   ==================================================== */
+#waReport {
+  background: #075e54; color: #e9edef;
+  font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 16px; border-radius: var(--radius-sm);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 50vh; overflow-y: auto;
+  border: 1px solid #25d366;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+/* ====================================================
+   CAJA CERRADA NOTE
+   ==================================================== */
+.cc-note {
+  background: var(--amber-soft); border: 1px solid var(--amber);
+  border-radius: var(--radius-sm); padding: 12px;
+  font-size: 13px; color: var(--amber);
+  margin-bottom: 16px;
+  display: flex; gap: 8px;
+}
+
+/* ====================================================
+   EMPTY STATE
+   ==================================================== */
+.empty-state {
+  text-align: center; padding: 48px 24px;
+  color: var(--muted);
+}
+.empty-state .es-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; line-height: 1.6; }
+
+/* ====================================================
+   RESPONSIVE — TABLET/DESKTOP
+   ==================================================== */
+@media (min-width: 600px) {
+  .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+  .gasto-row-fields { flex-wrap: nowrap; }
+  .modal-overlay { align-items: center; }
+  .modal-box { border-radius: var(--radius); }
+  #tabPanels { padding: 0; }
+  .tab-panel { max-width: 720px; margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingOverlay" class="hidden">
+  <div class="spinner"></div>
+  <p id="loadingMsg">Cargando…</p>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ========================
+     LOGIN SCREEN
+     ======================== -->
+<section id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🌺</div>
+    <h1 class="login-title">Flor de Azalea</h1>
+    <p class="login-sub">Sistema de Cortes de Caja</p>
+
+    <div class="field">
+      <label for="loginUser">Usuario</label>
+      <select id="loginUser">
+        <option value="admin">Admin</option>
+        <option value="encargado">Encargado</option>
+        <option value="cajera">Cajera</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="loginPin">PIN de acceso</label>
+      <div class="pin-wrap">
+        <input type="password" id="loginPin" inputmode="numeric" pattern="[0-9]*"
+               placeholder="••••" maxlength="8" autocomplete="current-password">
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btnLogin" onclick="login()">
+      🔓 Entrar
+    </button>
+    <p class="login-badge">🔒 Conexión cifrada HTTPS · Sin datos locales sensibles</p>
+  </div>
+</section>
+
+<!-- ========================
+     MAIN APP
+     ======================== -->
+<main id="appContainer" class="hidden">
+
+  <!-- HEADER -->
+  <header id="appHeader">
+    <span class="header-logo">🌺</span>
+    <div class="header-selects">
+      <select class="hdr-select" id="hdrTienda" onchange="onTiendaChange()">
+        <option value="">Cargando tiendas…</option>
+      </select>
+      <select class="hdr-select" id="hdrSemana" onchange="onSemanaChange()" style="min-width:100px">
+        <option value="">Semana</option>
+      </select>
+    </div>
+    <div class="hdr-user" onclick="showUserMenu()" title="Usuario / Cerrar sesión">👤</div>
+  </header>
+
+  <!-- TAB PANELS -->
+  <div id="tabPanels">
+
+    <!-- ===== TAB: CUADRE ===== -->
+    <section id="tab-cuadre" class="tab-panel active">
+      <div class="section-title">📋 Nuevo Corte de Caja</div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:140px;margin-bottom:0">
+            <label>Fecha del corte</label>
+            <input type="date" id="cuadreFecha" onchange="onCuadreFechaChange()">
+          </div>
+          <div class="field" style="flex:1;min-width:100px;margin-bottom:0">
+            <label>Semana (auto)</label>
+            <input type="text" id="cuadreSemana" readonly class="locked" placeholder="—">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-blue" onclick="openLoyverseModal()" style="margin-bottom:14px">
+        📋 Pegar Ticket Loyverse (auto-relleno)
+      </button>
+
+      <div class="card">
+        <div class="section-title" style="margin-top:0">Datos del cajón</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:140px">
+            <label>Hora apertura (Abierto)</label>
+            <input type="text" id="cuadreAbierto" placeholder="06/01/2025, 08:00">
+          </div>
+          <div class="field" style="flex:1;min-width:100px">
+            <label>Fondo de caja</label>
+            <input type="number" id="cuadreFondo" value="500" step="0.01">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:140px">
+            <label>Efectivo real (Loyverse)</label>
+            <input type="number" id="cuadreEfectivo" placeholder="0.00" step="0.01" oninput="calcCuadre()">
+          </div>
+          <div class="field" style="flex:1;min-width:140px">
+            <label>Ventas netas (Loyverse)</label>
+            <input type="number" id="cuadreVentasNetas" placeholder="0.00" step="0.01" oninput="calcCuadre()">
+          </div>
+        </div>
+      </div>
+
+      <!-- GASTOS -->
+      <div class="section-title">💸 Gastos / Salidas (de Loyverse)</div>
+      <div class="gasto-list" id="gastoList"></div>
+      <button class="btn btn-secondary" onclick="addGasto()" style="margin-bottom:16px">
+        ＋ Agregar Gasto
+      </button>
+
+      <!-- TOTALES EN VIVO -->
+      <div class="kpi-grid" id="cuadreKpis">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Pagos</div>
+          <div class="kpi-value" id="kpiPagos">$0.00</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Venta Total</div>
+          <div class="kpi-value" id="kpiVenta">$0.00</div>
+        </div>
+        <div class="kpi-card" id="kpiDescCard">
+          <div class="kpi-label">Descuadre</div>
+          <div class="kpi-value" id="kpiDesc">$0.00</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Efectivo Real</div>
+          <div class="kpi-value" id="kpiEfectivo">$0.00</div>
+        </div>
+      </div>
+
+      <div id="descAlertMsg" class="hidden" style="background:var(--red-soft);border:1px solid var(--red);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;font-size:13px;color:var(--red)">
+        ⚠️ <strong>Descuadre alto.</strong> Revisar datos antes de guardar.
+      </div>
+
+      <button class="btn btn-primary" onclick="guardarCuadre()" style="margin-bottom:8px">
+        💾 Guardar Corte
+      </button>
+    </section>
+
+    <!-- ===== TAB: SEMANA ===== -->
+    <section id="tab-semana" class="tab-panel">
+      <div class="section-title">📅 Vista Semanal</div>
+
+      <div id="semanaContent">
+        <div class="empty-state">
+          <div class="es-icon">📅</div>
+          <p>Selecciona una tienda y semana en la barra superior para ver los cortes.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TAB: COMPARAR ===== -->
+    <section id="tab-comparar" class="tab-panel">
+      <div class="section-title">📊 Comparativa Semana vs Semana</div>
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="field" style="flex:1">
+            <label>Semana A (actual)</label>
+            <select id="compSem1" onchange="loadComparativa()">
+              <option value="">Seleccionar…</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1">
+            <label>Semana B (anterior)</label>
+            <select id="compSem2" onchange="loadComparativa()">
+              <option value="">Seleccionar…</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="comparativaContent">
+        <div class="empty-state">
+          <div class="es-icon">📊</div>
+          <p>Selecciona dos semanas para comparar.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TAB: ANÁLISIS ===== -->
+    <section id="tab-analisis" class="tab-panel">
+      <div class="section-title">🔍 Análisis y Auditoría</div>
+
+      <!-- Filtros -->
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="field" style="flex:1">
+            <label>Período</label>
+            <select id="analisPeriodo" onchange="onAnalisPeriodoChange()">
+              <option value="semana">Esta semana</option>
+              <option value="mes">Este mes</option>
+              <option value="año">Este año</option>
+              <option value="rango">Rango libre</option>
+            </select>
+          </div>
+        </div>
+        <div id="analisRangoDates" class="hidden" style="display:none;gap:8px;flex-wrap:wrap">
+          <div class="field" style="flex:1">
+            <label>Desde</label>
+            <input type="date" id="analisDesde">
+          </div>
+          <div class="field" style="flex:1">
+            <label>Hasta</label>
+            <input type="date" id="analisHasta">
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalisis()" style="width:auto">
+          🔍 Analizar
+        </button>
+      </div>
+
+      <!-- Buscador de proveedores -->
+      <div class="section-title">Buscador de Gastos / Proveedores</div>
+      <div class="search-bar">
+        <input type="text" id="searchKeyword" placeholder="Buscar: BARCEL, TASAJO, CFE…"
+               onkeydown="if(event.key==='Enter') buscarGasto()">
+        <button class="btn btn-secondary btn-sm" onclick="buscarGasto()">Buscar</button>
+      </div>
+      <div id="searchResults"></div>
+
+      <!-- Resultados análisis -->
+      <div id="analisisContent">
+        <div class="empty-state">
+          <div class="es-icon">🔍</div>
+          <p>Elige un período y presiona Analizar.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TAB: MÁS ===== -->
+    <section id="tab-mas" class="tab-panel">
+
+      <!-- Reporte WhatsApp -->
+      <div class="section-title">📱 Reporte para WhatsApp</div>
+      <div class="card">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Genera el reporte de la semana seleccionada listo para enviar.
+        </p>
+        <button class="btn btn-green" onclick="generarReporteWA()" style="background:var(--green-dk);color:#fff;margin-bottom:12px">
+          📋 Generar Reporte Semana
+        </button>
+        <div id="waReport" class="hidden"></div>
+        <button class="btn btn-secondary hidden" id="btnCopyWA" onclick="copiarReporte()">
+          📋 Copiar al Portapapeles
+        </button>
+      </div>
+
+      <!-- Caja Cerrada -->
+      <div class="section-title">🔒 Registrar Gasto con Caja Cerrada</div>
+      <div class="card">
+        <div class="cc-note">
+          ⚠️ Para compras en días sin operación (fin de semana u otros). La venta no se afecta.
+        </div>
+        <div class="field">
+          <label>Fecha del gasto</label>
+          <input type="date" id="ccFecha">
+        </div>
+        <div class="field">
+          <label>Nombre del gasto</label>
+          <input type="text" id="ccNombre" placeholder="ej. MERCANCÍA, GASOLINA…" oninput="ccAutoCategoria()">
+        </div>
+        <div class="field">
+          <label>Monto ($)</label>
+          <input type="number" id="ccMonto" placeholder="0.00" step="0.01">
+        </div>
+        <div class="field">
+          <label>Categoría</label>
+          <select id="ccCategoria"></select>
+        </div>
+        <div class="field">
+          <label>¿De qué día se tomó el efectivo? (opcional)</label>
+          <select id="ccFuenteDia">
+            <option value="">No aplica / efectivo propio</option>
+          </select>
+        </div>
+        <button class="btn btn-amber" onclick="guardarCajaCerrada()">
+          💾 Guardar Gasto Cerrado
+        </button>
+      </div>
+
+      <!-- Info usuario -->
+      <div class="section-title">Sesión</div>
+      <div class="card" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:700" id="sessionUser">—</div>
+          <div style="font-size:12px;color:var(--muted)">Usuario activo</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="logout()">Cerrar sesión</button>
+      </div>
+
+    </section>
+  </div><!-- /tabPanels -->
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottomNav">
+    <button class="nav-btn active" id="nav-cuadre"  onclick="switchTab('cuadre')">
+      <span class="nav-icon">📋</span>Cuadre
+    </button>
+    <button class="nav-btn" id="nav-semana"  onclick="switchTab('semana')">
+      <span class="nav-icon">📅</span>Semana
+    </button>
+    <button class="nav-btn" id="nav-comparar" onclick="switchTab('comparar')">
+      <span class="nav-icon">📊</span>Comparar
+    </button>
+    <button class="nav-btn" id="nav-analisis" onclick="switchTab('analisis')">
+      <span class="nav-icon">🔍</span>Análisis
+    </button>
+    <button class="nav-btn" id="nav-mas"     onclick="switchTab('mas')">
+      <span class="nav-icon">⚙️</span>Más
+    </button>
+  </nav>
+
+</main><!-- /appContainer -->
+
+<!-- ========================
+     MODAL: PEGAR LOYVERSE
+     ======================== -->
+<div class="modal-overlay hidden" id="loyverseModalOverlay">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span>📋 Pegar Ticket Loyverse</span>
+      <button class="modal-close" onclick="closeModal('loyverseModalOverlay')">✕</button>
+    </div>
+    <div class="field">
+      <label>Pega aquí el mensaje completo de Loyverse</label>
+      <textarea id="loyversePaste" placeholder="Cuadre de efectivo&#10;Número del cierre de caja: 00&#10;Tienda: Lonchería Flor de Azalea..."></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('loyverseModalOverlay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="procesarLoyverse()">⚡ Procesar y rellenar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================
+     MODAL: EDITAR DÍA (Semana)
+     ======================== -->
+<div class="modal-overlay hidden" id="editDiaModalOverlay">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span id="editDiaTitle">Editar día</span>
+      <button class="modal-close" onclick="closeModal('editDiaModalOverlay')">✕</button>
+    </div>
+
+    <input type="hidden" id="editDiaDia">
+    <input type="hidden" id="editDiaMes">
+    <input type="hidden" id="editDiaAno">
+
+    <div class="field">
+      <label>Hora apertura</label>
+      <input type="text" id="editDiaAbierto" placeholder="DD/MM/YYYY, HH:MM">
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="field" style="flex:1">
+        <label>Efectivo Real</label>
+        <input type="number" id="editDiaEfectivo" step="0.01" oninput="calcEditDia()">
+      </div>
+      <div class="field" style="flex:1">
+        <label>Ventas Netas</label>
+        <input type="number" id="editDiaVentas" step="0.01" oninput="calcEditDia()">
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:4px">Gastos del día</div>
+    <div class="gasto-list" id="editGastoList"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addEditGasto()" style="margin-bottom:12px;width:auto">＋ Gasto</button>
+
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <div class="kpi-label">Pagos</div>
+        <div class="kpi-value" id="editKpiPagos">$0</div>
+      </div>
+      <div class="kpi-card" id="editKpiDescCard">
+        <div class="kpi-label">Descuadre</div>
+        <div class="kpi-value" id="editKpiDesc">$0</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('editDiaModalOverlay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarDiaEdit()">💾 Guardar Día</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================
+     MODAL: USUARIO / LOGOUT
+     ======================== -->
+<div class="modal-overlay center hidden" id="userMenuOverlay">
+  <div class="modal-box" style="max-width:300px">
+    <div class="modal-title">
+      <span>👤 Sesión</span>
+      <button class="modal-close" onclick="closeModal('userMenuOverlay')">✕</button>
+    </div>
+    <p style="margin-bottom:16px">Usuario: <strong id="userMenuName">—</strong></p>
+    <button class="btn btn-danger" onclick="logout()">🚪 Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- ================================================================
+     JAVASCRIPT
+     ================================================================ -->
+<script>
+'use strict';
+
+// ----------------------------------------------------------------
+// CONFIG — EDITAR ESTE VALOR CON TU URL DE GOOGLE APPS SCRIPT
+// ----------------------------------------------------------------
+const CONFIG = {
+  GAS_URL:          'https://script.google.com/macros/s/AKfycbyWFQ3ZwxpL_9DkXmoGX6UAvt2JFNpQZ4Aka52zW_er2lGxx0a4HfFNB34Ni6NBif_Hlg/exec',
+  TOKEN:            'M170K3N$3GUR0',   // debe coincidir con macros.js
+  FONDO_FIJO:       500,
+  DESC_LIMIT:       -100,
+};
+
+// ----------------------------------------------------------------
+// ESTADO GLOBAL
+// ----------------------------------------------------------------
+const APP = {
+  user:        null,
+  tiendas:     [],
+  tiendaAct:   null,
+  semanaAct:   null,
+  añoAct:      null,
+  semanasList: [],          // [{semana, año}]
+  weekData:    [],          // datos de la semana actual (para editar)
+  cuadreGastos:[],          // gastos del formulario de cuadre
+  editGastos:  [],          // gastos del modal editar día
+  editDiaObj:  null,        // objeto del día en edición
+  waText:      '',          // reporte WhatsApp generado
+};
+
+// ----------------------------------------------------------------
+// CATEGORÍAS
+// ----------------------------------------------------------------
+const CAT_KW = {
+  '🥩 Carnes y Embutidos':        ['CARNE','CECINA','TASAJO','POLLO','RES','PUERCO','CERDO','CHORIZO','JAMON','SALCHICHA','BISTEC','MILANESA','MOLIDA','COSTILLA','CHICHARRON','LONGANIZA','BARBACOA','CARNITAS','COCHINITA','ARRACHERA','TINGA','ASADA'],
+  '👷 Sueldos':                   ['SUELDO','NOMINA','SALARIO','RAYA','QUINCENA','TRABAJADOR','EMPLEADO'],
+  '🍭 Snacks y Botanas (Reventa)':['SABRITAS','MARINELA','BARCEL','BIMBO','GAMESA','RICOLINO','TAKIS','RUFFLES','CHEETOS','BOTANA','GALLETA','PASTEL','DONA','PINGUINO','GANSITO','SUBMARINO'],
+  '🫓 Tortillas, Pan y Panadería':['TORTILLA','PAN','TELERA','BOLILLO','TOSTADA','PANADERIA','BIROTE','TOTOPO','TLAYUDA'],
+  '🛒 Supermercado / Compras Generales':['WALMART','BODEGA','SORIANA','CHEDRAUI','COSTCO','MERCADO','TIANGUIS','ABARROTES','SUPER','COMPRA'],
+  '🥤 Bebidas y Refrescos':       ['COCA','PEPSI','REFRESCO','AGUA','JUGO','CERVEZA','JARRITOS','BOING','SIDRAL','CORONA','MODELO','VICTORIA','TECATE','SQUIRT'],
+  '🥦 Verduras y Frutas':         ['VERDURA','FRUTA','JITOMATE','TOMATE','CEBOLLA','AJO','CHILE','AGUACATE','AGUCATE','LIMON','MANGO','NARANJA','LECHUGA','ZANAHORIA','PAPA','NOPALES','PEPINO','PLATANO','FRESA','EPAZOTE','CILANTRO','HIERBA'],
+  '🔥 Gas LP':                    ['GAS LP','GASERA','GASCO','ZETA GAS','GAS GRILL','TERRAGAS','PROPANO'],
+  '⚡ CFE Electricidad':          ['CFE','LUZ ELECTRICA','ELECTRICIDAD','TARIFA ELECTRICA'],
+  '🏤 Impuestos / Gobierno':      ['SAT','IMSS','INFONAVIT','IMPUESTO','TENENCIA','PREDIAL','REFRENDO','LICENCIA'],
+  '🖇️ Papelería':                ['PAPELERIA','PAPEL','CUADERNO','FOLDER','PLUMA','TINTA','IMPRESION','COPIA'],
+  '🚗 Transporte':                ['GASOLINA','GASOLINERA','TAXI','UBER','DIESEL','FLETE','CARGO','ENVIO'],
+  '🧼 Limpieza':                  ['CLORO','DETERGENTE','ESCOBA','TRAPEADOR','CUBETA','SERVILLETA','DESECHABLE','GUANTE','AJAX','PINOL','PINO','LYSOL'],
+  '📦 Empaques':                  ['EMPAQUE','CAJA','BOLSA','CONTENEDOR','VASO UNICEL','PLATO CARTON','POPOTE'],
+};
+const CATS = Object.keys(CAT_KW);
+
+function clasificar(nombre) {
+  if (!nombre) return 'Otro';
+  const u = nombre.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  for (const [cat, kws] of Object.entries(CAT_KW)) {
+    if (kws.some(k => u.includes(k))) return cat;
+  }
+  return 'Otro';
+}
+
+// ----------------------------------------------------------------
+// MESES EN ESPAÑOL
+// ----------------------------------------------------------------
+const MESES = {
+  enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,
+  julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12,
+  ene:1,feb:2,mar:3,abr:4,may:5,jun:6,
+  jul:7,ago:8,sep:9,oct:10,nov:11,'dic':12
+};
+const MESES_CORTO = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DIAS_NOMBRE = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const DIAS_FULL   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+// ----------------------------------------------------------------
+// SEMANAS ISO
+// ----------------------------------------------------------------
+function isoWeek(date) {
+  const d = new Date(date);
+  d.setHours(12,0,0,0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - jan4) / 86400000 - 3 + (jan4.getDay() + 6) % 7) / 7);
+}
+
+function semanaOperativa(dateStr, tienda) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const isMatriz = tienda && tienda.toLowerCase().includes('matriz');
+  const dow = d.getDay(); // 0=Dom, 6=Sáb
+  if (isMatriz && (dow === 6 || dow === 0)) {
+    // Sáb/Dom → va a la siguiente semana de Matriz (operativa)
+    const next = new Date(d);
+    next.setDate(d.getDate() + (dow === 6 ? 2 : 1)); // llevar al lunes siguiente
+    return { semana: isoWeek(next), año: next.getFullYear() };
+  }
+  return { semana: isoWeek(d), año: d.getFullYear() };
+}
+
+function weekDateRange(semana, año) {
+  // Primer día (lunes) de la semana ISO dada
+  const jan4    = new Date(año, 0, 4);
+  const firstMon = new Date(jan4);
+  firstMon.setDate(jan4.getDate() - (jan4.getDay() + 6) % 7);
+  const start = new Date(firstMon);
+  start.setDate(firstMon.getDate() + (semana - 1) * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
+}
+
+function weekLabel(semana, año) {
+  const { start, end } = weekDateRange(semana, año);
+  const fmtShort = d => `${d.getDate()} ${MESES_CORTO[d.getMonth()+1]}`;
+  return `Sem. ${semana} (${fmtShort(start)}–${fmtShort(end)} ${end.getFullYear()})`;
+}
+
+function daysOfWeek(semana, año, tienda) {
+  const { start } = weekDateRange(semana, año);
+  const isMatriz = tienda && tienda.toLowerCase().includes('matriz');
+  const count = isMatriz ? 5 : 7; // Lun-Vie o Lun-Dom
+  const days = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+// ----------------------------------------------------------------
+// FORMATO MONEDA
+// ----------------------------------------------------------------
+function mxn(n, withSign = false) {
+  if (n === null || n === undefined || n === '') return '$0.00';
+  const v = parseFloat(n) || 0;
+  const fmt = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN' }).format(Math.abs(v));
+  if (withSign) return (v >= 0 ? '+' : '-') + fmt;
+  return (v < 0 ? '-' : '') + fmt;
+}
+function pct(a, b) {
+  if (!b || b === 0) return null;
+  return ((a - b) / Math.abs(b) * 100).toFixed(1);
+}
+function padZ(n) { return String(n).padStart(2,'0'); }
+
+// ----------------------------------------------------------------
+// API HELPER (fetch → GAS)
+// ----------------------------------------------------------------
+async function api(action, payload = {}) {
+  const body = JSON.stringify({ action, token: APP.user ? CONFIG.TOKEN : null, ...payload });
+  try {
+    const res = await fetch(CONFIG.GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body
+    });
+    const text = await res.text();
+    return JSON.parse(text);
+  } catch (err) {
+    console.error('API error:', err);
+    return { ok: false, error: err.message };
+  }
+}
+
+// ----------------------------------------------------------------
+// UI HELPERS
+// ----------------------------------------------------------------
+function loading(show, msg = 'Cargando…') {
+  const el = document.getElementById('loadingOverlay');
+  document.getElementById('loadingMsg').textContent = msg;
+  el.classList.toggle('hidden', !show);
+}
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3500);
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+}
+function showUserMenu() {
+  document.getElementById('userMenuName').textContent = APP.user;
+  openModal('userMenuOverlay');
+}
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('nav-' + tab).classList.add('active');
+  if (tab === 'semana')   renderSemanaTab();
+  if (tab === 'comparar') fillComparativaSelects();
+  if (tab === 'mas')      renderCCFuenteDia();
+}
+function $ (id)  { return document.getElementById(id); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+// ----------------------------------------------------------------
+// LOGIN / LOGOUT
+// ----------------------------------------------------------------
+async function login() {
+  const user = $('loginUser').value;
+  const pin  = $('loginPin').value.trim();
+  if (!pin) { toast('Ingresa tu PIN', 'err'); return; }
+
+  loading(true, 'Verificando…');
+  const r = await api('login', { action:'login', token: null, usuario: user, pin });
+  loading(false);
+
+  if (!r.ok) { toast(r.error || 'PIN incorrecto', 'err'); return; }
+
+  APP.user = r.user;
+  sessionStorage.setItem('cortes_user',  r.user);
+  sessionStorage.setItem('cortes_token', r.token);
+
+  $('loginScreen').classList.add('hidden');
+  $('appContainer').classList.remove('hidden');
+  $('sessionUser').textContent = r.user;
+
+  await initApp();
+}
+
+function logout() {
+  APP.user = null;
+  sessionStorage.clear();
+  location.reload();
+}
+
+// ----------------------------------------------------------------
+// INICIALIZACIÓN POST-LOGIN
+// ----------------------------------------------------------------
+async function initApp() {
+  loading(true, 'Cargando tiendas…');
+  const r = await api('getTiendas');
+  loading(false);
+
+  if (!r.ok) { toast('Error al cargar tiendas: ' + r.error, 'err'); return; }
+
+  APP.tiendas = r.tiendas;
+  const sel = $('hdrTienda');
+  sel.innerHTML = r.tiendas.map(t =>
+    `<option value="${t}">${t}</option>`
+  ).join('');
+
+  // Fecha de hoy por defecto en cuadre
+  const hoy = new Date();
+  const hoyStr = `${hoy.getFullYear()}-${padZ(hoy.getMonth()+1)}-${padZ(hoy.getDate())}`;
+  $('cuadreFecha').value = hoyStr;
+  $('ccFecha').value     = hoyStr;
+
+  // Poblar categorías en caja cerrada
+  const ccCat = $('ccCategoria');
+  ccCat.innerHTML = CATS.map(c => `<option value="${c}">${c}</option>`).join('') +
+                    '<option value="Otro">Otro</option>';
+
+  // Triggerear cambio para cargar semanas y calcular semana
+  await onTiendaChange();
+
+  // Agregar un gasto vacío por defecto
+  addGasto();
+}
+
+// ----------------------------------------------------------------
+// TIENDA CHANGE
+// ----------------------------------------------------------------
+async function onTiendaChange() {
+  APP.tiendaAct = $('hdrTienda').value;
+  if (!APP.tiendaAct) return;
+
+  loading(true, 'Cargando semanas…');
+  const r = await api('getWeeks', { tienda: APP.tiendaAct });
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  APP.semanasList = r.weeks;
+
+  const selHdr  = $('hdrSemana');
+  const selCmp1 = $('compSem1');
+  const selCmp2 = $('compSem2');
+
+  const opts = r.weeks.map(w =>
+    `<option value="${w.semana}_${w.año}">${weekLabel(w.semana, w.año)}</option>`
+  ).join('');
+  const blank = '<option value="">Seleccionar…</option>';
+
+  selHdr.innerHTML  = opts;
+  selCmp1.innerHTML = blank + opts;
+  selCmp2.innerHTML = blank + opts;
+
+  // Semana actual automática
+  onCuadreFechaChange();
+  await onSemanaChange();
+}
+
+// ----------------------------------------------------------------
+// SEMANA CHANGE (header)
+// ----------------------------------------------------------------
+async function onSemanaChange() {
+  const val = $('hdrSemana').value;
+  if (!val) return;
+  const [sem, año] = val.split('_').map(Number);
+  APP.semanaAct = sem;
+  APP.añoAct    = año;
+
+  loading(true, 'Leyendo semana…');
+  const r = await api('getWeekData', { tienda: APP.tiendaAct, semana: sem, año });
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  APP.weekData = r.data;
+
+  // Si ya está en tab semana, refrescar
+  if (document.getElementById('tab-semana').classList.contains('active')) {
+    renderSemanaTab();
+  }
+  renderCCFuenteDia();
+}
+
+// ----------------------------------------------------------------
+// CUADRE: CAMBIO DE FECHA → AUTO SEMANA
+// ----------------------------------------------------------------
+function onCuadreFechaChange() {
+  const fecha = $('cuadreFecha').value;
+  if (!fecha || !APP.tiendaAct) return;
+  const { semana, año } = semanaOperativa(fecha, APP.tiendaAct);
+  $('cuadreSemana').value = `Sem. ${semana} / ${año}`;
+  APP._cuadreSemana = semana;
+  APP._cuadreAño    = año;
+}
+
+// ----------------------------------------------------------------
+// CUADRE: GASTOS
+// ----------------------------------------------------------------
+function addGasto(nombre='', monto='', cat='') {
+  const idx = APP.cuadreGastos.length;
+  APP.cuadreGastos.push({ nombre, monto, cat: cat || clasificar(nombre) });
+  renderGastoList('gastoList', APP.cuadreGastos, 'cuadreGasto', delGasto, calcCuadre);
+  calcCuadre();
+}
+function delGasto(idx) {
+  APP.cuadreGastos.splice(idx, 1);
+  renderGastoList('gastoList', APP.cuadreGastos, 'cuadreGasto', delGasto, calcCuadre);
+  calcCuadre();
+}
+function renderGastoList(containerId, arr, prefix, delFn, changeFn) {
+  const container = $(containerId);
+  if (!arr.length) { container.innerHTML = ''; return; }
+  container.innerHTML = arr.map((g, i) => `
+    <div class="gasto-row">
+      <div class="gasto-row-fields">
+        <input class="gasto-nombre" placeholder="NOMBRE GASTO"
+               value="${esc(g.nombre)}" oninput="onGastoNombre('${prefix}',${i})"
+               id="${prefix}_n_${i}">
+        <input class="gasto-monto" type="number" placeholder="0.00" step="0.01"
+               value="${g.monto || ''}" oninput="onGastoMonto('${prefix}',${i})"
+               id="${prefix}_m_${i}">
+        <select class="gasto-cat" onchange="onGastoCat('${prefix}',${i})"
+                id="${prefix}_c_${i}">
+          ${CATS.map(c => `<option value="${c}" ${g.cat===c?'selected':''}>${c}</option>`).join('')}
+          <option value="Otro" ${g.cat==='Otro'||!g.cat?'selected':''}>Otro</option>
+        </select>
+        <button class="gasto-del" onclick="${delFn.name}(${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function onGastoNombre(prefix, idx) {
+  const nombre = $(`${prefix}_n_${idx}`).value.toUpperCase();
+  const arr = prefix === 'cuadreGasto' ? APP.cuadreGastos : APP.editGastos;
+  arr[idx].nombre = nombre;
+  const cat = clasificar(nombre);
+  arr[idx].cat = cat;
+  const sel = $(`${prefix}_c_${idx}`);
+  if (sel) sel.value = cat;
+  if (prefix === 'cuadreGasto') calcCuadre();
+  else calcEditDia();
+}
+function onGastoMonto(prefix, idx) {
+  const arr = prefix === 'cuadreGasto' ? APP.cuadreGastos : APP.editGastos;
+  arr[idx].monto = parseFloat($(`${prefix}_m_${idx}`).value) || 0;
+  if (prefix === 'cuadreGasto') calcCuadre();
+  else calcEditDia();
+}
+function onGastoCat(prefix, idx) {
+  const arr = prefix === 'cuadreGasto' ? APP.cuadreGastos : APP.editGastos;
+  arr[idx].cat = $(`${prefix}_c_${idx}`).value;
+}
+
+// ----------------------------------------------------------------
+// CUADRE: CÁLCULOS EN VIVO
+// ----------------------------------------------------------------
+function calcCuadre() {
+  const efectivo    = parseFloat($('cuadreEfectivo').value) || 0;
+  const ventasNetas = parseFloat($('cuadreVentasNetas').value) || 0;
+  const pagos       = APP.cuadreGastos.reduce((s, g) => s + (parseFloat(g.monto) || 0), 0);
+  const ventaTotal  = efectivo + Math.abs(pagos);
+  const descuadre   = ventaTotal - ventasNetas;
+
+  $('kpiPagos').textContent    = mxn(-Math.abs(pagos));
+  $('kpiVenta').textContent    = mxn(ventaTotal);
+  $('kpiDesc').textContent     = mxn(descuadre, true);
+  $('kpiEfectivo').textContent = mxn(efectivo);
+
+  const dc = $('kpiDescCard');
+  dc.className = 'kpi-card';
+  if (descuadre > 0)                     dc.classList.add('green');
+  else if (descuadre < CONFIG.DESC_LIMIT) { dc.classList.add('red','pulsing'); }
+  else if (descuadre < 0)               dc.classList.add('amber');
+
+  const alertEl = $('descAlertMsg');
+  alertEl.classList.toggle('hidden', descuadre >= CONFIG.DESC_LIMIT);
+}
+
+// ----------------------------------------------------------------
+// CUADRE: GUARDAR
+// ----------------------------------------------------------------
+async function guardarCuadre() {
+  const fecha = $('cuadreFecha').value;
+  if (!fecha)         { toast('Selecciona una fecha', 'err'); return; }
+  if (!APP.tiendaAct) { toast('Selecciona una tienda', 'err'); return; }
+
+  const parts   = fecha.split('-');
+  const año     = parseInt(parts[0]);
+  const mes     = parseInt(parts[1]);
+  const dia     = parseInt(parts[2]);
+  const { semana } = semanaOperativa(fecha, APP.tiendaAct);
+
+  const fondo    = parseFloat($('cuadreFondo').value) || 500;
+  const efectivo = parseFloat($('cuadreEfectivo').value) || 0;
+  const ventasN  = parseFloat($('cuadreVentasNetas').value) || 0;
+
+  const gastos   = APP.cuadreGastos.filter(g => g.nombre || g.monto);
+  const pagos    = gastos.reduce((s, g) => s - Math.abs(parseFloat(g.monto) || 0), 0);
+  const venta    = efectivo + Math.abs(pagos);
+  const desc     = venta - ventasN;
+
+  if (fondo === 0) {
+    if (!confirm('⚠️ El Fondo de Caja es $0.00. ¿Seguro que es correcto?')) return;
+  }
+
+  const rowObj = {
+    dia, mes, año, semana,
+    tienda:       APP.tiendaAct,
+    abierto:      $('cuadreAbierto').value.trim() || `${padZ(dia)}/${padZ(mes)}/${año}`,
+    fondo,
+    descuadre:    desc,
+    pagos:        pagos,
+    ventaTotal:   venta,
+    efectivoReal: efectivo,
+    gastos:       gastos.map(g => ({
+      nombre: g.nombre.toUpperCase(),
+      monto:  -Math.abs(parseFloat(g.monto) || 0),
+      cat:    g.cat || 'Otro'
+    }))
+  };
+
+  loading(true, 'Guardando corte…');
+  const r = await api('upsertRows', { rows: [rowObj], user: APP.user });
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  toast('✅ Corte guardado correctamente', 'ok');
+
+  // Refrescar semana
+  await onSemanaChange();
+}
+
+// ----------------------------------------------------------------
+// LOYVERSE PARSER
+// ----------------------------------------------------------------
+function openLoyverseModal() {
+  $('loyversePaste').value = '';
+  openModal('loyverseModalOverlay');
+}
+
+function parseLoyverse(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const r = { tienda:'', fecha:null, abierto:'', fondo:500, efectivo:0, ventasNetas:0, gastos:[] };
+  const amt = s => parseFloat(String(s).replace(/[$,\s]/g,'')) || 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+
+    if (/^tienda:/i.test(l))
+      r.tienda = l.replace(/^tienda:\s*/i,'').trim();
+
+    if (/^abierto/i.test(l)) {
+      const candidate = l.includes(',') ? l : (lines[i+1] || '');
+      const m = candidate.match(/(\d{1,2})\s+([a-záéíóú]+)\s+(\d{4})/i);
+      if (m) {
+        const dia = parseInt(m[1]), año = parseInt(m[3]);
+        const mes = MESES[m[2].toLowerCase()] || 1;
+        r.fecha   = { dia, mes, año };
+        r.abierto = `${padZ(dia)}/${padZ(mes)}/${año}`;
+        // Extraer hora si existe
+        const h = candidate.match(/(\d{1,2}:\d{2})/);
+        if (h) r.abierto += ', ' + h[1];
+      }
+    }
+
+    if (l === 'Fondo de caja anterior' && lines[i+1])
+      r.fondo = amt(lines[i+1]);
+
+    if (/^cantidad de efectivo real/i.test(l) && lines[i+1])
+      r.efectivo = amt(lines[i+1]);
+
+    if (/^ventas netas/i.test(l) && lines[i+1] && !lines[i-1].toLowerCase().includes('brutas'))
+      r.ventasNetas = amt(lines[i+1]);
+
+    if (/^dep.sitos \/ salidas/i.test(l)) {
+      let j = i + 1;
+      while (j < lines.length) {
+        const ln = lines[j];
+        // Saltar líneas de hora (HH:MM)
+        if (/^\d{1,2}:\d{2}$/.test(ln)) { j++; continue; }
+        // Verificar si la siguiente línea tiene monto
+        if (j + 1 < lines.length && /^-?\$[\d,]+/.test(lines[j+1])) {
+          let nombre = ln;
+          if (nombre.includes(' - ')) nombre = nombre.split(' - ').slice(1).join(' - ').trim();
+          nombre = nombre.toUpperCase();
+          const monto = amt(lines[j+1]);
+          r.gastos.push({ nombre, monto: -Math.abs(monto), cat: clasificar(nombre) });
+          j += 2;
+        } else { j++; }
+      }
+      break;
+    }
+  }
+  return r;
+}
+
+function procesarLoyverse() {
+  const text = $('loyversePaste').value.trim();
+  if (!text) { toast('Pega el ticket primero', 'err'); return; }
+
+  const r = parseLoyverse(text);
+
+  // Rellenar tienda si encontró
+  if (r.tienda && APP.tiendas.includes(r.tienda)) {
+    $('hdrTienda').value = r.tienda;
+    APP.tiendaAct = r.tienda;
+  }
+
+  // Fecha
+  if (r.fecha) {
+    const { dia, mes, año } = r.fecha;
+    const fechaStr = `${año}-${padZ(mes)}-${padZ(dia)}`;
+    $('cuadreFecha').value = fechaStr;
+    onCuadreFechaChange();
+  }
+
+  $('cuadreAbierto').value      = r.abierto || '';
+  $('cuadreFondo').value        = r.fondo || 500;
+  $('cuadreEfectivo').value     = r.efectivo || '';
+  $('cuadreVentasNetas').value  = r.ventasNetas || '';
+
+  // Gastos
+  APP.cuadreGastos = r.gastos;
+  renderGastoList('gastoList', APP.cuadreGastos, 'cuadreGasto', delGasto, calcCuadre);
+  if (!APP.cuadreGastos.length) addGasto();
+
+  calcCuadre();
+  closeModal('loyverseModalOverlay');
+  toast(`✅ Ticket procesado. ${r.gastos.length} gasto(s) detectados.`, 'ok');
+}
+
+// ----------------------------------------------------------------
+// SEMANA TAB: RENDER
+// ----------------------------------------------------------------
+function renderSemanaTab() {
+  if (!APP.tiendaAct || !APP.semanaAct) {
+    $('semanaContent').innerHTML = `
+      <div class="empty-state">
+        <div class="es-icon">📅</div>
+        <p>Selecciona tienda y semana.</p>
+      </div>`;
+    return;
+  }
+
+  const data     = APP.weekData;
+  const days     = daysOfWeek(APP.semanaAct, APP.añoAct, APP.tiendaAct);
+  const dataMap  = {};
+  data.forEach(d => {
+    const key = `${d.dia}_${d.mes}_${d.año}`;
+    dataMap[key] = d;
+  });
+
+  // Totales semanales
+  let totVenta = 0, totPagos = 0, totEfectivo = 0, totDesc = 0;
+  data.forEach(d => {
+    totVenta    += parseFloat(d.ventaTotal)   || 0;
+    totPagos    += parseFloat(d.pagos)        || 0;
+    totEfectivo += parseFloat(d.efectivoReal) || 0;
+    totDesc     += parseFloat(d.descuadre)    || 0;
+  });
+
+  let html = `
+    <div class="semana-totals">
+      <div class="st-item"><div class="st-lbl">Venta Sem.</div><div class="st-val" style="color:var(--green)">${mxn(totVenta)}</div></div>
+      <div class="st-item"><div class="st-lbl">Efectivo</div><div class="st-val">${mxn(totEfectivo)}</div></div>
+      <div class="st-item"><div class="st-lbl">Descuadre</div><div class="st-val" style="color:${totDesc>=0?'var(--green)':totDesc<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${mxn(totDesc,true)}</div></div>
+    </div>`;
+
+  days.forEach(day => {
+    const key  = `${day.getDate()}_${day.getMonth()+1}_${day.getFullYear()}`;
+    const d    = dataMap[key];
+    const dow  = DIAS_FULL[day.getDay()];
+    const fechaFmt = `${dow} ${day.getDate()} ${MESES_CORTO[day.getMonth()+1]}`;
+
+    if (!d) {
+      html += `
+        <div class="dia-card vacio" onclick="openEditDia(null,${day.getDate()},${day.getMonth()+1},${day.getFullYear()})">
+          <div class="dia-head">
+            <span class="dia-fecha">${fechaFmt}</span>
+            <span class="badge badge-blue">Sin registro</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">Toca para agregar corte</div>
+        </div>`;
+    } else {
+      const desc = parseFloat(d.descuadre) || 0;
+      const isAlert = desc < CONFIG.DESC_LIMIT;
+      const descBadge = desc >= 0 ? 'badge-green' : (isAlert ? 'badge-red' : 'badge-amber');
+      const gastos = (d.gastos || []).filter(g => g.nombre);
+
+      html += `
+        <div class="dia-card ${isAlert ? 'alert pulsing' : ''}"
+             onclick="openEditDia(${JSON.stringify(d).replace(/"/g,"'")},${day.getDate()},${day.getMonth()+1},${day.getFullYear()})">
+          <div class="dia-head">
+            <span class="dia-fecha">${fechaFmt}</span>
+            <span class="badge ${descBadge}">${mxn(desc, true)}</span>
+          </div>
+          <div class="dia-meta">
+            <span class="dia-stat">Venta: <span>${mxn(d.ventaTotal)}</span></span>
+            <span class="dia-stat">Efectivo: <span>${mxn(d.efectivoReal)}</span></span>
+            <span class="dia-stat">Pagos: <span>${mxn(d.pagos)}</span></span>
+            ${gastos.length ? `<span class="dia-stat">${gastos.length} gasto(s)</span>` : ''}
+          </div>
+        </div>`;
+    }
+  });
+
+  html += `
+    <div style="margin-top:8px">
+      <button class="btn btn-amber" onclick="switchTab('mas');generarReporteWA()" style="margin-bottom:8px">
+        📱 Generar Reporte WhatsApp
+      </button>
+    </div>`;
+
+  $('semanaContent').innerHTML = html;
+}
+
+// ----------------------------------------------------------------
+// EDITAR DÍA (modal)
+// ----------------------------------------------------------------
+function openEditDia(dObj, dia, mes, año) {
+  APP.editDiaObj = dObj;
+  const dow      = new Date(año, mes-1, dia).getDay();
+  const fechaFmt = `${DIAS_FULL[dow]} ${dia} ${MESES_CORTO[mes]} ${año}`;
+
+  $('editDiaTitle').textContent = `Editar: ${fechaFmt}`;
+  $('editDiaDia').value         = dia;
+  $('editDiaMes').value         = mes;
+  $('editDiaAno').value         = año;
+
+  if (dObj) {
+    $('editDiaAbierto').value  = dObj.abierto || '';
+    $('editDiaEfectivo').value = Math.abs(dObj.efectivoReal) || '';
+    $('editDiaVentas').value   = '';
+    APP.editGastos = (dObj.gastos || []).map(g => ({
+      nombre: g.nombre || '',
+      monto:  Math.abs(parseFloat(g.monto) || 0),
+      cat:    g.cat || clasificar(g.nombre)
+    }));
+  } else {
+    $('editDiaAbierto').value  = `${padZ(dia)}/${padZ(mes)}/${año}`;
+    $('editDiaEfectivo').value = '';
+    $('editDiaVentas').value   = '';
+    APP.editGastos = [];
+  }
+
+  renderGastoList('editGastoList', APP.editGastos, 'editGasto', delEditGasto, calcEditDia);
+  calcEditDia();
+  openModal('editDiaModalOverlay');
+}
+
+function addEditGasto() {
+  APP.editGastos.push({ nombre:'', monto:0, cat:'Otro' });
+  renderGastoList('editGastoList', APP.editGastos, 'editGasto', delEditGasto, calcEditDia);
+}
+function delEditGasto(idx) {
+  APP.editGastos.splice(idx, 1);
+  renderGastoList('editGastoList', APP.editGastos, 'editGasto', delEditGasto, calcEditDia);
+  calcEditDia();
+}
+function calcEditDia() {
+  const ef   = parseFloat($('editDiaEfectivo').value) || 0;
+  const vn   = parseFloat($('editDiaVentas').value)   || 0;
+  const pags = APP.editGastos.reduce((s,g) => s + (parseFloat(g.monto)||0), 0);
+  const vt   = ef + pags;
+  const desc = vn ? vt - vn : (parseFloat(APP.editDiaObj?.descuadre) || 0);
+
+  $('editKpiPagos').textContent = mxn(-pags);
+  $('editKpiDesc').textContent  = mxn(vn ? desc : null, true);
+
+  const dc = $('editKpiDescCard');
+  dc.className = 'kpi-card';
+  if (desc > 0)                       dc.classList.add('green');
+  else if (desc < CONFIG.DESC_LIMIT)  dc.classList.add('red');
+  else if (desc < 0)                  dc.classList.add('amber');
+}
+
+async function guardarDiaEdit() {
+  const dia  = parseInt($('editDiaDia').value);
+  const mes  = parseInt($('editDiaMes').value);
+  const año  = parseInt($('editDiaAno').value);
+  const ef   = parseFloat($('editDiaEfectivo').value) || 0;
+  const vn   = parseFloat($('editDiaVentas').value)   || 0;
+
+  const gastos  = APP.editGastos.filter(g => g.nombre || g.monto);
+  const pagos   = gastos.reduce((s,g) => s - Math.abs(parseFloat(g.monto)||0), 0);
+  const venta   = ef + Math.abs(pagos);
+  const desc    = vn ? venta - vn : parseFloat(APP.editDiaObj?.descuadre) || 0;
+
+  const dateStr  = `${año}-${padZ(mes)}-${padZ(dia)}`;
+  const { semana } = semanaOperativa(dateStr, APP.tiendaAct);
+
+  const rowObj = {
+    dia, mes, año, semana,
+    tienda:       APP.tiendaAct,
+    abierto:      $('editDiaAbierto').value || `${padZ(dia)}/${padZ(mes)}/${año}`,
+    fondo:        500,
+    descuadre:    desc,
+    pagos,
+    ventaTotal:   venta,
+    efectivoReal: ef,
+    gastos: gastos.map(g => ({
+      nombre: g.nombre.toUpperCase(),
+      monto:  -Math.abs(parseFloat(g.monto)||0),
+      cat:    g.cat || 'Otro'
+    }))
+  };
+
+  loading(true, 'Guardando día…');
+  const r = await api('upsertRows', { rows: [rowObj], user: APP.user });
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  toast('✅ Día guardado', 'ok');
+  closeModal('editDiaModalOverlay');
+  await onSemanaChange();
+}
+
+// ----------------------------------------------------------------
+// COMPARATIVA
+// ----------------------------------------------------------------
+function fillComparativaSelects() {
+  if (!APP.semanasList.length) return;
+  const opts = APP.semanasList.map(w =>
+    `<option value="${w.semana}_${w.año}">${weekLabel(w.semana, w.año)}</option>`
+  ).join('');
+  const blank = '<option value="">Seleccionar…</option>';
+  $('compSem1').innerHTML = blank + opts;
+  $('compSem2').innerHTML = blank + opts;
+}
+
+async function loadComparativa() {
+  const v1 = $('compSem1').value;
+  const v2 = $('compSem2').value;
+  if (!v1 || !v2 || !APP.tiendaAct) return;
+
+  const [s1, a1] = v1.split('_').map(Number);
+  const [s2, a2] = v2.split('_').map(Number);
+
+  loading(true, 'Cargando comparativa…');
+  const r = await api('getComparativa', {
+    tienda: APP.tiendaAct,
+    semana1: s1, año1: a1,
+    semana2: s2, año2: a2
+  });
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  renderComparativa(r.week1, r.week2, s1, a1, s2, a2);
+}
+
+function renderComparativa(w1, w2, s1, a1, s2, a2) {
+  const days = daysOfWeek(s1, a1, APP.tiendaAct);
+
+  const mkMap = (arr) => {
+    const m = {};
+    arr.forEach(d => { m[`${d.dia}_${d.mes}`] = d; });
+    return m;
+  };
+  const m1 = mkMap(w1), m2 = mkMap(w2);
+
+  let html = `
+    <div style="overflow-x:auto">
+    <table class="comp-table">
+      <thead><tr>
+        <th class="dia-name">Día</th>
+        <th>Venta ${s1}/${a1}</th>
+        <th>Venta ${s2}/${a2}</th>
+        <th>Var.%</th>
+        <th>Desc. A</th>
+        <th>Desc. B</th>
+      </tr></thead><tbody>`;
+
+  let totV1=0, totV2=0, totD1=0, totD2=0;
+
+  days.forEach(day => {
+    const k  = `${day.getDate()}_${day.getMonth()+1}`;
+    const d1 = m1[k], d2 = m2[k];
+    const v1n = parseFloat(d1?.ventaTotal) || 0;
+    const v2n = parseFloat(d2?.ventaTotal) || 0;
+    const p   = pct(v1n, v2n);
+    const desc1 = parseFloat(d1?.descuadre) || 0;
+    const desc2 = parseFloat(d2?.descuadre) || 0;
+
+    totV1 += v1n; totV2 += v2n;
+    totD1 += desc1; totD2 += desc2;
+
+    const pctClass = p === null ? 'pct-neu' : (parseFloat(p) >= 0 ? 'pct-pos' : 'pct-neg');
+
+    html += `<tr>
+      <td class="dia-name">${DIAS_NOMBRE[day.getDay()]} ${day.getDate()}</td>
+      <td>${d1 ? mxn(v1n) : '—'}</td>
+      <td>${d2 ? mxn(v2n) : '—'}</td>
+      <td class="${pctClass}">${p !== null ? p + '%' : '—'}</td>
+      <td style="color:${desc1<CONFIG.DESC_LIMIT?'var(--red)':desc1>=0?'var(--green)':'var(--amber)'}">${d1?mxn(desc1,true):'—'}</td>
+      <td style="color:${desc2<CONFIG.DESC_LIMIT?'var(--red)':desc2>=0?'var(--green)':'var(--amber)'}">${d2?mxn(desc2,true):'—'}</td>
+    </tr>`;
+  });
+
+  const totPct = pct(totV1, totV2);
+  const tpClass = totPct===null?'pct-neu':(parseFloat(totPct)>=0?'pct-pos':'pct-neg');
+
+  html += `</tbody><tfoot><tr style="font-weight:700;border-top:2px solid var(--border)">
+    <td class="dia-name">TOTAL</td>
+    <td>${mxn(totV1)}</td>
+    <td>${mxn(totV2)}</td>
+    <td class="${tpClass}">${totPct!==null?totPct+'%':'—'}</td>
+    <td style="color:${totD1>=0?'var(--green)':'var(--red)'}">${mxn(totD1,true)}</td>
+    <td style="color:${totD2>=0?'var(--green)':'var(--red)'}">${mxn(totD2,true)}</td>
+  </tr></tfoot>
+  </table></div>`;
+
+  $('comparativaContent').innerHTML = html;
+}
+
+// ----------------------------------------------------------------
+// ANÁLISIS
+// ----------------------------------------------------------------
+function onAnalisPeriodoChange() {
+  const v = $('analisPeriodo').value;
+  const el = $('analisRangoDates');
+  el.style.display = v === 'rango' ? 'flex' : 'none';
+}
+
+async function loadAnalisis() {
+  if (!APP.tiendaAct) { toast('Selecciona una tienda', 'err'); return; }
+
+  const periodo = $('analisPeriodo').value;
+  const now     = new Date();
+  const payload = { tienda: APP.tiendaAct, limitDescuadre: CONFIG.DESC_LIMIT };
+
+  if (periodo === 'semana' && APP.semanaAct) {
+    payload.semana = APP.semanaAct;
+  } else if (periodo === 'mes') {
+    const d1 = new Date(now.getFullYear(), now.getMonth(), 1);
+    const d2 = new Date(now.getFullYear(), now.getMonth()+1, 0);
+    payload.fechaInicio = d1.toISOString().split('T')[0];
+    payload.fechaFin    = d2.toISOString().split('T')[0];
+  } else if (periodo === 'año') {
+    payload.fechaInicio = `${now.getFullYear()}-01-01`;
+    payload.fechaFin    = `${now.getFullYear()}-12-31`;
+  } else if (periodo === 'rango') {
+    payload.fechaInicio = $('analisDesde').value;
+    payload.fechaFin    = $('analisHasta').value;
+    if (!payload.fechaInicio || !payload.fechaFin) {
+      toast('Completa el rango de fechas', 'err'); return;
+    }
+  }
+
+  loading(true, 'Analizando…');
+  const r = await api('getAnalysis', payload);
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  renderAnalisis(r);
+}
+
+function renderAnalisis(r) {
+  const { categorias, alerts, totals } = r;
+  const maxCat = categorias[0]?.total || 1;
+
+  let html = `
+    <div class="kpi-grid">
+      <div class="kpi-card green"><div class="kpi-label">Venta Total</div><div class="kpi-value">${mxn(totals.venta)}</div></div>
+      <div class="kpi-card blue"><div class="kpi-label">Total Gastos</div><div class="kpi-value">${mxn(Math.abs(totals.pagos))}</div></div>
+      <div class="kpi-card ${totals.descuadre>=0?'green':'red'}"><div class="kpi-label">Descuadre</div><div class="kpi-value">${mxn(totals.descuadre,true)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Días</div><div class="kpi-value">${totals.dias}</div></div>
+    </div>`;
+
+  if (categorias.length) {
+    html += `<div class="section-title" style="margin-top:16px">Gastos por Categoría</div>`;
+    categorias.forEach(({ cat, total }) => {
+      const w = ((total / maxCat) * 100).toFixed(1);
+      html += `
+        <div class="bar-row">
+          <div class="bar-head">
+            <span class="bar-cat">${cat}</span>
+            <span class="bar-amt">${mxn(total)}</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${w}%"></div></div>
+        </div>`;
+    });
+  } else {
+    html += `<div class="empty-state"><div class="es-icon">📭</div><p>Sin gastos en este período.</p></div>`;
+  }
+
+  if (alerts.length) {
+    html += `<div class="section-title" style="margin-top:16px;color:var(--red)">⚠️ Alertas de Descuadre (${alerts.length})</div>`;
+    alerts.forEach(d => {
+      html += `
+        <div class="card pulsing" style="border-color:var(--red)">
+          <div style="display:flex;justify-content:space-between">
+            <strong>${DIAS_NOMBRE[new Date(d.año,d.mes-1,d.dia).getDay()]} ${d.dia}/${d.mes}/${d.año}</strong>
+            <span style="color:var(--red);font-weight:800">${mxn(d.descuadre,true)}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">${d.tienda}</div>
+        </div>`;
+    });
+  }
+
+  $('analisisContent').innerHTML = html;
+}
+
+async function buscarGasto() {
+  const kw = $('searchKeyword').value.trim();
+  if (!kw) { toast('Escribe una palabra clave', 'err'); return; }
+  if (!APP.tiendaAct) { toast('Selecciona tienda', 'err'); return; }
+
+  loading(true, 'Buscando…');
+  const r = await api('searchGastos', { tienda: APP.tiendaAct, keyword: kw });
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+
+  if (!r.results.length) {
+    $('searchResults').innerHTML = `<div class="empty-state"><div class="es-icon">🔎</div><p>Sin resultados para "<strong>${esc(kw)}</strong>"</p></div>`;
+    return;
+  }
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:13px;color:var(--muted)">${r.count} registro(s) encontrados</span>
+      <strong style="color:var(--amber)">${mxn(r.total)}</strong>
+    </div>`;
+  r.results.forEach(res => {
+    html += `
+      <div class="search-result-item">
+        <div class="sri-left">
+          <div class="sri-nombre">${esc(res.nombre)}</div>
+          <div class="sri-fecha">${res.dia}/${res.mes}/${res.año} · ${esc(res.cat)}</div>
+        </div>
+        <div class="sri-right">${mxn(res.monto)}</div>
+      </div>`;
+  });
+
+  $('searchResults').innerHTML = html;
+}
+
+// ----------------------------------------------------------------
+// WHATSAPP REPORT
+// ----------------------------------------------------------------
+async function generarReporteWA() {
+  if (!APP.tiendaAct || !APP.semanaAct) {
+    toast('Selecciona tienda y semana', 'err'); return;
+  }
+
+  let data = APP.weekData;
+  if (!data.length) {
+    loading(true, 'Cargando datos…');
+    const r = await api('getWeekData', { tienda: APP.tiendaAct, semana: APP.semanaAct, año: APP.añoAct });
+    loading(false);
+    if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+    data = r.data;
+  }
+
+  if (!data.length) { toast('No hay datos para esta semana', 'err'); return; }
+
+  const tiendaNombre = APP.tiendaAct.replace('Lonchería Flor De Azalea - ', '').replace('Loncheria Flor de Azalea - ', '');
+  let texto = '';
+  let totV=0, totP=0, totE=0, totD=0;
+  const catGlobal = {};
+
+  data.sort((a,b) => a.dia - b.dia);
+
+  data.forEach(d => {
+    const dow = new Date(d.año, d.mes-1, d.dia).getDay();
+    const diaName = DIAS_FULL[dow];
+    const fechaStr = `${diaName} ${d.dia} ${MESES_CORTO[d.mes]} ${d.año}`;
+
+    texto += `~Semana ${d.semana}~  ${tiendaNombre}\n`;
+    texto += `_${fechaStr}_\n`;
+    texto += `*Fondo de caja anterior*\n$${d.fondo || 500}\n`;
+    texto += `*Descuadre*\n${mxn(d.descuadre, true)}\n\n`;
+    texto += `*Pagos*\n${mxn(d.pagos)}\n`;
+    texto += `*Venta total*\n${mxn(d.ventaTotal)}\n`;
+    texto += `*Efectivo real*\n${mxn(d.efectivoReal)}\n`;
+
+    if (d.gastos && d.gastos.length) {
+      texto += `\n*Salidas*\n`;
+      d.gastos.forEach(g => {
+        if (!g.nombre) return;
+        texto += `\n${g.nombre}\n${mxn(g.monto)}\n`;
+        const amt = Math.abs(parseFloat(g.monto) || 0);
+        catGlobal[g.cat || 'Sin cat'] = (catGlobal[g.cat || 'Sin cat'] || 0) + amt;
+      });
+    }
+    texto += '\n───────────────────\n\n';
+
+    totV += parseFloat(d.ventaTotal)   || 0;
+    totP += parseFloat(d.pagos)        || 0;
+    totE += parseFloat(d.efectivoReal) || 0;
+    totD += parseFloat(d.descuadre)    || 0;
+  });
+
+  texto += `\n*RESUMEN Teórico - SEMANA ${APP.semanaAct}*\n\n`;
+  texto += `*Descuadre*\n${mxn(totD, true)}\n\n`;
+  texto += `*Pagos*\n${mxn(totP)}\n`;
+  texto += `*Venta total*\n${mxn(totV)}\n`;
+  texto += `*Efectivo real*\n${mxn(totE)}\n`;
+
+  const totalGastos = Object.values(catGlobal).reduce((s,v) => s+v, 0);
+  if (totalGastos > 0) {
+    texto += `\n*RESUMEN GASTOS Semana ${APP.semanaAct}*\nTotal general:\n${mxn(-totalGastos)}\n`;
+    const cats = Object.entries(catGlobal).sort((a,b) => b[1]-a[1]);
+    cats.forEach(([cat, amt]) => { texto += `\n${cat}\n${mxn(-amt)}\n`; });
+  }
+
+  APP.waText = texto;
+  const wa = $('waReport');
+  wa.textContent = texto;
+  wa.classList.remove('hidden');
+  $('btnCopyWA').classList.remove('hidden');
+
+  // Asegurarse que estamos en tab Más
+  switchTab('mas');
+  toast('✅ Reporte generado', 'ok');
+}
+
+async function copiarReporte() {
+  try {
+    await navigator.clipboard.writeText(APP.waText);
+    toast('📋 Copiado al portapapeles', 'ok');
+  } catch {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = APP.waText;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('📋 Copiado', 'ok');
+  }
+}
+
+// ----------------------------------------------------------------
+// CAJA CERRADA
+// ----------------------------------------------------------------
+function renderCCFuenteDia() {
+  const sel = $('ccFuenteDia');
+  const data = APP.weekData;
+  let opts = '<option value="">No aplica / efectivo propio</option>';
+  if (data.length) {
+    data.forEach(d => {
+      const dow = new Date(d.año, d.mes-1, d.dia).getDay();
+      opts += `<option value="${d.dia}_${d.mes}_${d.año}">${DIAS_FULL[dow]} ${d.dia}/${d.mes} (Ef.Real: ${mxn(d.efectivoReal)})</option>`;
+    });
+  }
+  sel.innerHTML = opts;
+}
+
+function ccAutoCategoria() {
+  const nombre = $('ccNombre').value;
+  const cat    = clasificar(nombre);
+  $('ccCategoria').value = cat;
+}
+
+async function guardarCajaCerrada() {
+  const fecha  = $('ccFecha').value;
+  const nombre = $('ccNombre').value.trim().toUpperCase();
+  const monto  = parseFloat($('ccMonto').value) || 0;
+  const cat    = $('ccCategoria').value;
+  const fuente = $('ccFuenteDia').value;
+
+  if (!fecha)   { toast('Selecciona fecha', 'err'); return; }
+  if (!nombre)  { toast('Escribe el nombre del gasto', 'err'); return; }
+  if (!monto)   { toast('Ingresa el monto', 'err'); return; }
+  if (!APP.tiendaAct) { toast('Selecciona tienda', 'err'); return; }
+
+  const parts = fecha.split('-');
+  const año   = parseInt(parts[0]);
+  const mes   = parseInt(parts[1]);
+  const dia   = parseInt(parts[2]);
+  const { semana } = semanaOperativa(fecha, APP.tiendaAct);
+
+  const rows = [];
+
+  // Fila del día cerrado
+  rows.push({
+    dia, mes, año, semana,
+    tienda:       APP.tiendaAct,
+    abierto:      'CERRADO',
+    fondo:        0,
+    descuadre:    0,
+    pagos:        -Math.abs(monto),
+    ventaTotal:   0,
+    efectivoReal: 0,
+    gastos: [{ nombre, monto: -Math.abs(monto), cat }]
+  });
+
+  // Si se especificó fuente, reducir efectivo de ese día
+  if (fuente) {
+    const [fDia, fMes, fAño] = fuente.split('_').map(Number);
+    const diaFuente = APP.weekData.find(d =>
+      d.dia === fDia && d.mes === fMes && d.año === fAño
+    );
+    if (diaFuente) {
+      const nuevoEfectivo = (parseFloat(diaFuente.efectivoReal) || 0) - Math.abs(monto);
+      const nuevaVenta    = nuevoEfectivo + Math.abs(parseFloat(diaFuente.pagos) || 0);
+      const nuevoDesc     = nuevaVenta - (parseFloat(diaFuente.ventaTotal) - parseFloat(diaFuente.descuadre));
+
+      rows.push({
+        ...diaFuente,
+        efectivoReal: nuevoEfectivo,
+        ventaTotal:   nuevaVenta,
+        descuadre:    nuevoDesc,
+      });
+    }
+  }
+
+  if (fuente && !APP.weekData.find(d => {
+    const [fd,fm,fa] = fuente.split('_').map(Number);
+    return d.dia===fd && d.mes===fm && d.año===fa;
+  })) {
+    toast('No se encontraron datos del día fuente. Guarda ese día primero.', 'err');
+    return;
+  }
+
+  loading(true, 'Guardando gasto cerrado…');
+  const r = await api('upsertRows', { rows, user: APP.user });
+  loading(false);
+
+  if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  toast(`✅ Gasto registrado${rows.length > 1 ? ' y efectivo ajustado' : ''}`, 'ok');
+
+  $('ccNombre').value = '';
+  $('ccMonto').value  = '';
+  await onSemanaChange();
+}
+
+// ----------------------------------------------------------------
+// UTIL: ESCAPE HTML
+// ----------------------------------------------------------------
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ----------------------------------------------------------------
+// INIT — verificar sesión guardada
+// ----------------------------------------------------------------
+(async function init() {
+  const savedUser  = sessionStorage.getItem('cortes_user');
+  const savedToken = sessionStorage.getItem('cortes_token');
+
+  if (savedUser && savedToken && savedToken === CONFIG.TOKEN) {
+    APP.user = savedUser;
+    $('loginScreen').classList.add('hidden');
+    $('appContainer').classList.remove('hidden');
+    $('sessionUser').textContent = savedUser;
+    await initApp();
+  } else {
+    // Setup login enter key
+    $('loginPin').addEventListener('keydown', e => {
+      if (e.key === 'Enter') login();
+    });
+  }
+})();
+</script>
+</body>
+</html>
