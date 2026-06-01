@@ -1360,7 +1360,7 @@ function onGastoNombre(prefix, idx) {
 }
 function onGastoMonto(prefix, idx) {
   const arr = prefix === 'cuadreGasto' ? APP.cuadreGastos : APP.editGastos;
-  arr[idx].monto = parseFloat($(`${prefix}_m_${idx}`).value) || 0;
+  arr[idx].monto = Math.abs(parseFloat($(`${prefix}_m_${idx}`).value) || 0); // siempre positivo
   if (prefix === 'cuadreGasto') calcCuadre();
   else calcEditDia();
 }
@@ -1376,12 +1376,12 @@ function calcCuadre() {
   const efectivo    = parseFloat($('cuadreEfectivo').value) || 0;
   const ventasNetas = parseFloat($('cuadreVentasNetas').value) || 0;
   const fondo       = parseFloat($('cuadreFondo').value) || 0;
-  const pagos       = APP.cuadreGastos.reduce((s, g) => s + (parseFloat(g.monto) || 0), 0);
-  // Fórmula: Pagos + Efectivo Real - Fondo de caja anterior
-  const ventaTotal  = efectivo + Math.abs(pagos) - fondo;
+  // Cada monto siempre positivo; sumamos en absoluto para evitar cancelaciones de signo
+  const pagos       = APP.cuadreGastos.reduce((s, g) => s + Math.abs(parseFloat(g.monto) || 0), 0);
+  const ventaTotal  = efectivo + pagos - fondo;
   const descuadre   = ventaTotal - ventasNetas;
 
-  $('kpiPagos').textContent    = mxn(-Math.abs(pagos));
+  $('kpiPagos').textContent    = mxn(-pagos);
   $('kpiVenta').textContent    = mxn(ventaTotal);
   $('kpiDesc').textContent     = mxn(descuadre, true);
   $('kpiEfectivo').textContent = mxn(efectivo);
@@ -1504,7 +1504,7 @@ function parseLoyverse(text) {
           if (nombre.includes(' - ')) nombre = nombre.split(' - ').slice(1).join(' - ').trim();
           nombre = nombre.toUpperCase();
           const monto = amt(lines[j+1]);
-          r.gastos.push({ nombre, monto: -Math.abs(monto), cat: clasificar(nombre) });
+          r.gastos.push({ nombre, monto: Math.abs(monto), cat: clasificar(nombre) }); // siempre positivo
           j += 2;
         } else { j++; }
       }
@@ -1552,32 +1552,59 @@ function procesarLoyverse() {
 // ----------------------------------------------------------------
 // SEMANA TAB: RENDER
 // ----------------------------------------------------------------
+// Genera el texto WA de un solo día
+function textoDia(d, tiendaNombre) {
+  const dow = new Date(d.año, d.mes-1, d.dia).getDay();
+  let t = `~Semana ${d.semana}~  ${tiendaNombre}\n`;
+  t += `_${d.dia} ${MESES_CORTO[d.mes]} ${d.año} ${DIAS_FULL[dow]}_\n`;
+  t += `*Fondo de caja anterior*\n$${d.fondo || 500}\n`;
+  t += `*Descuadre*\n${mxn(d.descuadre, true)}\n\n`;
+  t += `*Pagos*\n${mxn(d.pagos)}\n`;
+  t += `*Venta total*\n${mxn(d.ventaTotal)}\n`;
+  t += `*Efectivo real*\n${mxn(d.efectivoReal)}\n`;
+  const gs = (d.gastos || []).filter(g => g.nombre);
+  if (gs.length) {
+    t += `\n*Depósitos / Salida*\n`;
+    gs.forEach(g => { t += `\n${g.nombre}\n${mxn(g.monto)}\n`; });
+  }
+  return t;
+}
+
+function copiarTextoDia(idx) {
+  const d = APP.weekData[idx];
+  if (!d) return;
+  const tiendaNombre = APP.tiendaAct.replace(/loncher[ií]a flor de azalea\s*-\s*/i,'').trim();
+  const txt = textoDia(d, tiendaNombre);
+  navigator.clipboard.writeText(txt).then(() => toast('📋 Copiado', 'ok')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('📋 Copiado', 'ok');
+  });
+}
+
 function renderSemanaTab() {
   if (!APP.tiendaAct || !APP.semanaAct) {
     $('semanaContent').innerHTML = `
-      <div class="empty-state">
-        <div class="es-icon">📅</div>
-        <p>Selecciona tienda y semana.</p>
-      </div>`;
+      <div class="empty-state"><div class="es-icon">📅</div>
+      <p>Selecciona tienda y semana.</p></div>`;
     return;
   }
 
-  const data     = APP.weekData;
-  const days     = daysOfWeek(APP.semanaAct, APP.añoAct, APP.tiendaAct);
-  const dataMap  = {};
-  data.forEach(d => {
-    const key = `${d.dia}_${d.mes}_${d.año}`;
-    dataMap[key] = d;
-  });
+  const data    = APP.weekData;
+  const days    = daysOfWeek(APP.semanaAct, APP.añoAct, APP.tiendaAct);
+  const dataMap = {};
+  data.forEach(d => { dataMap[`${d.dia}_${d.mes}_${d.año}`] = d; });
 
-  // Totales semanales
-  let totVenta = 0, totPagos = 0, totEfectivo = 0, totDesc = 0;
+  let totVenta=0, totPagos=0, totEfectivo=0, totDesc=0;
   data.forEach(d => {
     totVenta    += parseFloat(d.ventaTotal)   || 0;
     totPagos    += parseFloat(d.pagos)        || 0;
     totEfectivo += parseFloat(d.efectivoReal) || 0;
     totDesc     += parseFloat(d.descuadre)    || 0;
   });
+
+  const tiendaNombre = APP.tiendaAct.replace(/loncher[ií]a flor de azalea\s*-\s*/i,'').trim();
 
   let html = `
     <div class="semana-totals">
@@ -1587,9 +1614,9 @@ function renderSemanaTab() {
     </div>`;
 
   days.forEach(day => {
-    const key  = `${day.getDate()}_${day.getMonth()+1}_${day.getFullYear()}`;
-    const d    = dataMap[key];
-    const dow  = DIAS_FULL[day.getDay()];
+    const key = `${day.getDate()}_${day.getMonth()+1}_${day.getFullYear()}`;
+    const d   = dataMap[key];
+    const dow = DIAS_FULL[day.getDay()];
     const fechaFmt = `${dow} ${day.getDate()} ${MESES_CORTO[day.getMonth()+1]}`;
 
     if (!d) {
@@ -1599,39 +1626,100 @@ function renderSemanaTab() {
             <span class="dia-fecha">${fechaFmt}</span>
             <span class="badge badge-blue">Sin registro</span>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px">Toca para agregar corte</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">Toca para agregar</div>
         </div>`;
-    } else {
-      const desc = parseFloat(d.descuadre) || 0;
-      const isAlert = desc < CONFIG.DESC_LIMIT;
-      const descBadge = desc >= 0 ? 'badge-green' : (isAlert ? 'badge-red' : 'badge-amber');
-      const gastos = (d.gastos || []).filter(g => g.nombre);
-
-      html += `
-        <div class="dia-card ${isAlert ? 'alert pulsing' : ''}"
-             onclick="openEditDia(${JSON.stringify(d).replace(/"/g,"'")},${day.getDate()},${day.getMonth()+1},${day.getFullYear()})">
-          <div class="dia-head">
-            <span class="dia-fecha">${fechaFmt}</span>
-            <span class="badge ${descBadge}">${mxn(desc, true)}</span>
-          </div>
-          <div class="dia-meta">
-            <span class="dia-stat">Venta: <span>${mxn(d.ventaTotal)}</span></span>
-            <span class="dia-stat">Efectivo: <span>${mxn(d.efectivoReal)}</span></span>
-            <span class="dia-stat">Pagos: <span>${mxn(d.pagos)}</span></span>
-            ${gastos.length ? `<span class="dia-stat">${gastos.length} gasto(s)</span>` : ''}
-          </div>
-        </div>`;
+      return;
     }
+
+    const desc    = parseFloat(d.descuadre) || 0;
+    const isAlert = desc < CONFIG.DESC_LIMIT;
+    const descBadge = desc >= 0 ? 'badge-green' : (isAlert ? 'badge-red' : 'badge-amber');
+    const gs = (d.gastos || []).filter(g => g.nombre);
+    const dIdx = data.indexOf(d);
+
+    // Texto WA de este día (para preview en el card)
+    const gastosList = gs.map(g =>
+      `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;border-bottom:1px solid var(--border)">
+        <span>${esc(g.nombre)}</span><span style="color:var(--amber)">${mxn(g.monto)}</span>
+      </div>`
+    ).join('');
+
+    html += `
+      <div class="dia-card ${isAlert ? 'alert pulsing' : ''}">
+        <div class="dia-head" style="margin-bottom:8px">
+          <span class="dia-fecha">${fechaFmt}</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="badge ${descBadge}">${mxn(desc, true)}</span>
+            <button class="btn btn-secondary btn-sm" style="padding:4px 8px;min-height:auto"
+                    onclick="event.stopPropagation();copiarTextoDia(${dIdx})">📋</button>
+            <button class="btn btn-secondary btn-sm" style="padding:4px 8px;min-height:auto"
+                    onclick="event.stopPropagation();openEditDia(${JSON.stringify(d).replace(/"/g,"'")},${day.getDate()},${day.getMonth()+1},${day.getFullYear()})">✏️</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Venta</div>
+            <div style="font-weight:800;color:var(--green)">${mxn(d.ventaTotal)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Efectivo</div>
+            <div style="font-weight:800">${mxn(d.efectivoReal)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Pagos</div>
+            <div style="font-weight:800;color:var(--amber)">${mxn(d.pagos)}</div>
+          </div>
+        </div>
+        ${gs.length ? `<div style="margin-top:4px">${gastosList}</div>` : ''}
+      </div>`;
+  });
+
+  // Resumen de semana con botón copiar
+  const catGlobal = {};
+  data.forEach(d => (d.gastos||[]).forEach(g => {
+    if (!g.nombre) return;
+    catGlobal[g.cat||'Sin cat'] = (catGlobal[g.cat||'Sin cat']||0) + Math.abs(parseFloat(g.monto)||0);
+  }));
+  const grouped = groupCatForWA(catGlobal);
+  const totGasto = Object.values(catGlobal).reduce((s,v)=>s+v,0);
+
+  let resumenTxt = `*RESUMEN Teórico - SEMANA ${APP.semanaAct}*\n\n`;
+  resumenTxt += `*Descuadre*\n${mxn(totDesc,true)}\n\n`;
+  resumenTxt += `*Pagos*\n${mxn(totPagos)}\n`;
+  resumenTxt += `*Venta total*\n${mxn(totVenta)}\n`;
+  resumenTxt += `*Efectivo real*\n${mxn(totEfectivo)}\n`;
+  resumenTxt += `\n*RESUMEN GASTOS SEMANA ${APP.semanaAct}*\nTotal general:\n${mxn(-totGasto)}\n`;
+  WA_CAT_ORDER.forEach(cat => {
+    const amt = grouped[cat]||0;
+    resumenTxt += `\n${cat}\n`;
+    if (amt>0) resumenTxt += `${mxn(-amt)}\n`;
   });
 
   html += `
-    <div style="margin-top:8px">
-      <button class="btn btn-amber" onclick="switchTab('mas');generarReporteWA()" style="margin-bottom:8px">
-        📱 Generar Reporte WhatsApp
-      </button>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <strong>Resumen Semana ${APP.semanaAct}</strong>
+        <button class="btn btn-secondary btn-sm" onclick="copiarResumenSemana()">📋 Copiar resumen</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="kpi-card green"><div class="kpi-label">Venta</div><div class="kpi-value" style="font-size:16px">${mxn(totVenta)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Efectivo</div><div class="kpi-value" style="font-size:16px">${mxn(totEfectivo)}</div></div>
+        <div class="kpi-card blue"><div class="kpi-label">Pagos</div><div class="kpi-value" style="font-size:16px">${mxn(totPagos)}</div></div>
+        <div class="kpi-card ${totDesc>=0?'green':totDesc<CONFIG.DESC_LIMIT?'red':'amber'}"><div class="kpi-label">Descuadre</div><div class="kpi-value" style="font-size:16px">${mxn(totDesc,true)}</div></div>
+      </div>
     </div>`;
 
+  APP._resumenSemanaWA = resumenTxt;
   $('semanaContent').innerHTML = html;
+}
+
+function copiarResumenSemana() {
+  const txt = APP._resumenSemanaWA || '';
+  navigator.clipboard.writeText(txt).then(() => toast('📋 Resumen copiado','ok')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta); toast('📋 Copiado','ok');
+  });
 }
 
 // ----------------------------------------------------------------
@@ -1683,7 +1771,7 @@ function calcEditDia() {
   const ef   = parseFloat($('editDiaEfectivo').value) || 0;
   const vn   = parseFloat($('editDiaVentas').value)   || 0;
   const fondo = parseFloat($('editDiaFondo').value) || 0;
-  const pags = APP.editGastos.reduce((s,g) => s + (parseFloat(g.monto)||0), 0);
+  const pags = APP.editGastos.reduce((s,g) => s + Math.abs(parseFloat(g.monto)||0), 0);
   const vt   = ef + pags - fondo;
   const desc = vn ? vt - vn : (parseFloat(APP.editDiaObj?.descuadre) || 0);
 
@@ -1853,20 +1941,27 @@ async function loadComparativa() {
 function renderComparativa(w1, w2, s1, a1, s2, a2) {
   const days = daysOfWeek(s1, a1, APP.tiendaAct);
 
+  // Mapeamos por posición semanal (lunes=0 ... domingo=6) para que las fechas no importen
   const mkMap = (arr) => {
     const m = {};
-    arr.forEach(d => { m[`${d.dia}_${d.mes}`] = d; });
+    arr.forEach(d => {
+      const pos = (new Date(d.año, d.mes-1, d.dia).getDay() + 6) % 7;
+      m[pos] = d;
+    });
     return m;
   };
   const m1 = mkMap(w1), m2 = mkMap(w2);
+
+  const { start: st2 } = weekDateRange(s2, a2);
+  const fmtD = d => `${d.getDate()} ${MESES_CORTO[d.getMonth()+1]}`;
 
   let html = `
     <div style="overflow-x:auto">
     <table class="comp-table">
       <thead><tr>
         <th class="dia-name">Día</th>
-        <th>Venta ${s1}/${a1}</th>
-        <th>Venta ${s2}/${a2}</th>
+        <th>Sem ${s1}/${a1}</th>
+        <th>Sem ${s2}/${a2}</th>
         <th>Var.%</th>
         <th>Desc. A</th>
         <th>Desc. B</th>
@@ -1874,9 +1969,8 @@ function renderComparativa(w1, w2, s1, a1, s2, a2) {
 
   let totV1=0, totV2=0, totD1=0, totD2=0;
 
-  days.forEach(day => {
-    const k  = `${day.getDate()}_${day.getMonth()+1}`;
-    const d1 = m1[k], d2 = m2[k];
+  days.forEach((day, pos) => {
+    const d1 = m1[pos], d2 = m2[pos];
     const v1n = parseFloat(d1?.ventaTotal) || 0;
     const v2n = parseFloat(d2?.ventaTotal) || 0;
     const p   = pct(v1n, v2n);
@@ -1888,8 +1982,13 @@ function renderComparativa(w1, w2, s1, a1, s2, a2) {
 
     const pctClass = p === null ? 'pct-neu' : (parseFloat(p) >= 0 ? 'pct-pos' : 'pct-neg');
 
+    // Fecha semana B en la misma posición relativa
+    const dayB = new Date(st2); dayB.setDate(st2.getDate() + pos);
+    const lblA = `${DIAS_NOMBRE[day.getDay()]} ${fmtD(day)}`;
+    const lblB = fmtD(dayB);
+
     html += `<tr>
-      <td class="dia-name">${DIAS_NOMBRE[day.getDay()]} ${day.getDate()}</td>
+      <td class="dia-name" style="font-size:11px">${lblA}<br><span style="color:var(--muted)">${lblB}</span></td>
       <td>${d1 ? mxn(v1n) : '—'}</td>
       <td>${d2 ? mxn(v2n) : '—'}</td>
       <td class="${pctClass}">${p !== null ? p + '%' : '—'}</td>
@@ -1931,6 +2030,10 @@ async function loadAnalisis() {
   const payload = { tienda: APP.tiendaAct, limitDescuadre: CONFIG.DESC_LIMIT };
 
   if (periodo === 'semana' && APP.semanaAct) {
+    // Pasar rango de fechas exacto en vez de solo semana, para evitar mezcla de años
+    const { start, end } = weekDateRange(APP.semanaAct, APP.añoAct);
+    payload.fechaInicio = `${start.getFullYear()}-${padZ(start.getMonth()+1)}-${padZ(start.getDate())}`;
+    payload.fechaFin    = `${end.getFullYear()}-${padZ(end.getMonth()+1)}-${padZ(end.getDate())}`;
     payload.semana = APP.semanaAct;
   } else if (periodo === 'mes') {
     const d1 = new Date(now.getFullYear(), now.getMonth(), 1);
