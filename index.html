@@ -754,18 +754,34 @@ a { color: var(--blue); }
 
       <!-- Filtros -->
       <div class="card">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div class="field" style="flex:1;margin-bottom:0">
-            <label>Período</label>
-            <select id="analisPeriodo" onchange="onAnalisPeriodoChange()">
-              <option value="semana">Esta semana</option>
-              <option value="mes">Este mes</option>
-              <option value="año">Este año</option>
-              <option value="rango">Rango libre</option>
-            </select>
+        <div class="field" style="margin-bottom:10px">
+          <label>Tipo de período</label>
+          <select id="analisTipo" onchange="onAnalisTipoChange()">
+            <option value="semana">Semana</option>
+            <option value="mes">Mes</option>
+            <option value="año">Año</option>
+            <option value="rango">Rango libre</option>
+          </select>
+        </div>
+        <div id="analSemPanel">
+          <div class="field" style="margin-bottom:0">
+            <label>Semana</label>
+            <select id="analisSemana"><option value="">— cargando —</option></select>
           </div>
         </div>
-        <div id="analisRangoDates" style="display:none;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <div id="analMesPanel" style="display:none">
+          <div class="field" style="margin-bottom:0">
+            <label>Mes</label>
+            <input type="month" id="analisMes">
+          </div>
+        </div>
+        <div id="analAnoPanel" style="display:none">
+          <div class="field" style="margin-bottom:0">
+            <label>Año</label>
+            <select id="analisAno"></select>
+          </div>
+        </div>
+        <div id="analRangoPanel" style="display:none;gap:8px;flex-wrap:wrap">
           <div class="field" style="flex:1;margin-bottom:0">
             <label>Desde</label>
             <input type="date" id="analisDesde">
@@ -775,7 +791,7 @@ a { color: var(--blue); }
             <input type="date" id="analisHasta">
           </div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadAnalisis()" style="width:auto;margin-top:10px">
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalisis()" style="width:auto;margin-top:12px">
           🔍 Analizar
         </button>
       </div>
@@ -825,25 +841,43 @@ a { color: var(--blue); }
       <div class="section-title">📱 Reporte para WhatsApp</div>
       <div class="card">
         <div class="field" style="margin-bottom:10px">
-          <label>Período del reporte</label>
-          <select id="waPeriodo" onchange="onWAPeriodoChange()">
-            <option value="semana">Semana actual</option>
-            <option value="mes">Mes actual</option>
-            <option value="año">Año actual</option>
+          <label>Tipo de período</label>
+          <select id="waTipo" onchange="onWATipoChange()">
+            <option value="semana">Semana</option>
+            <option value="mes">Mes</option>
+            <option value="año">Año</option>
             <option value="rango">Rango libre</option>
           </select>
         </div>
-        <div id="waRangoDates" style="display:none;gap:8px;flex-wrap:wrap">
-          <div class="field" style="flex:1">
+        <div id="waSemPanel">
+          <div class="field" style="margin-bottom:0">
+            <label>Semana</label>
+            <select id="waSemana"><option value="">— seleccionar —</option></select>
+          </div>
+        </div>
+        <div id="waMesPanel" style="display:none">
+          <div class="field" style="margin-bottom:0">
+            <label>Mes</label>
+            <input type="month" id="waMes">
+          </div>
+        </div>
+        <div id="waAnoPanel" style="display:none">
+          <div class="field" style="margin-bottom:0">
+            <label>Año</label>
+            <select id="waAno"></select>
+          </div>
+        </div>
+        <div id="waRangoPanel" style="display:none;gap:8px;flex-wrap:wrap">
+          <div class="field" style="flex:1;margin-bottom:0">
             <label>Desde</label>
             <input type="date" id="waDesde">
           </div>
-          <div class="field" style="flex:1">
+          <div class="field" style="flex:1;margin-bottom:0">
             <label>Hasta</label>
             <input type="date" id="waHasta">
           </div>
         </div>
-        <button class="btn btn-green" onclick="generarReporteWA()" style="background:var(--green-dk);color:#fff;margin-bottom:12px">
+        <button class="btn btn-green" onclick="generarReporteWA()" style="background:var(--green-dk);color:#fff;margin-top:12px;margin-bottom:12px">
           📋 Generar Reporte
         </button>
         <div id="waReport" class="hidden"></div>
@@ -1123,14 +1157,13 @@ function semanaOperativa(dateStr, tienda) {
 }
 
 function weekDateRange(semana, año) {
-  // Primer día (lunes) de la semana ISO dada
-  const jan4    = new Date(año, 0, 4);
+  // Usa mediodia (12:00) para evitar saltos por horario de verano / zona horaria
+  const jan4     = new Date(año, 0, 4, 12, 0, 0);
   const firstMon = new Date(jan4);
   firstMon.setDate(jan4.getDate() - (jan4.getDay() + 6) % 7);
-  const start = new Date(firstMon);
-  start.setDate(firstMon.getDate() + (semana - 1) * 7);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
+  const start = new Date(firstMon.getFullYear(), firstMon.getMonth(),
+                         firstMon.getDate() + (semana - 1) * 7, 12, 0, 0);
+  const end   = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 12, 0, 0);
   return { start, end };
 }
 
@@ -1140,15 +1173,12 @@ function weekLabel(semana, año) {
   return `Sem. ${semana} (${fmtShort(start)}–${fmtShort(end)} ${end.getFullYear()})`;
 }
 
-function daysOfWeek(semana, año, tienda) {
+function daysOfWeek(semana, año) {
+  // Siempre Lunes–Domingo (7 días) sin importar tienda
   const { start } = weekDateRange(semana, año);
-  const isMatriz = tienda && tienda.toLowerCase().includes('matriz');
-  const count = isMatriz ? 5 : 7; // Lun-Vie o Lun-Dom
   const days = [];
-  for (let i = 0; i < count; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(d);
+  for (let i = 0; i < 7; i++) {
+    days.push(new Date(start.getFullYear(), start.getMonth(), start.getDate() + i, 12, 0, 0));
   }
   return days;
 }
@@ -1320,6 +1350,11 @@ async function onTiendaChange() {
   // Semana actual automática
   onCuadreFechaChange();
   await onSemanaChange();
+
+  // Llenar selectores de análisis y WA con las semanas disponibles
+  fillAnalisisWeeks();
+  fillWAWeeks();
+  fillAnoSelects();
 
   // Auto-comparativa: semana actual vs misma semana año pasado
   if (APP.semanaAct && APP.añoAct) {
@@ -1608,10 +1643,15 @@ function procesarLoyverse() {
 
   const r = parseLoyverse(text);
 
-  // Rellenar tienda si encontró
-  if (r.tienda && APP.tiendas.includes(r.tienda)) {
-    $('hdrTienda').value = r.tienda;
-    APP.tiendaAct = r.tienda;
+  // Rellenar tienda — comparación sin tildes ni diferencia de mayúsculas
+  if (r.tienda) {
+    const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+    const match = APP.tiendas.find(t => norm(t) === norm(r.tienda));
+    if (match) {
+      $('hdrTienda').value = match;
+      APP.tiendaAct = match;
+      await onTiendaChange();
+    }
   }
 
   // Fecha
@@ -1691,7 +1731,7 @@ function renderSemanaTab() {
   }
 
   const data    = APP.weekData;
-  const days    = daysOfWeek(APP.semanaAct, APP.añoAct, APP.tiendaAct);
+  const days    = daysOfWeek(APP.semanaAct, APP.añoAct);
   const dataMap = {};
   data.forEach(d => { dataMap[`${d.dia}_${d.mes}_${d.año}`] = d; });
 
@@ -2074,7 +2114,7 @@ async function loadComparativa() {
 }
 
 function renderComparativa(w1, w2, s1, a1, s2, a2) {
-  const days = daysOfWeek(s1, a1, APP.tiendaAct);
+  const days = daysOfWeek(s1, a1);
   const mkMap = arr => {
     const m = {};
     arr.forEach(d => { m[(new Date(d.año, d.mes-1, d.dia).getDay() + 6) % 7] = d; });
@@ -2086,12 +2126,13 @@ function renderComparativa(w1, w2, s1, a1, s2, a2) {
   let totV1=0, totV2=0, totD1=0, totD2=0, totP1=0, totP2=0, totE1=0, totE2=0;
   days.forEach((day, pos) => {
     const d1 = m1[pos], d2 = m2[pos];
-    totV1 += parseFloat(d1?.ventaTotal)||0;  totV2 += parseFloat(d2?.ventaTotal)||0;
-    totD1 += parseFloat(d1?.descuadre)||0;   totD2 += parseFloat(d2?.descuadre)||0;
+    totV1 += parseFloat(d1?.ventaTotal) ||0; totV2 += parseFloat(d2?.ventaTotal) ||0;
+    totD1 += parseFloat(d1?.descuadre)  ||0; totD2 += parseFloat(d2?.descuadre)  ||0;
     totP1 += Math.abs(parseFloat(d1?.pagos)||0); totP2 += Math.abs(parseFloat(d2?.pagos)||0);
     totE1 += (parseFloat(d1?.efectivoReal)||0) - (parseFloat(d1?.fondo)||0);
     totE2 += (parseFloat(d2?.efectivoReal)||0) - (parseFloat(d2?.fondo)||0);
   });
+  // Gastos = abs(pagos)
 
   const varV = pct(totV1, totV2);
   const L1 = weekLabel(s1, a1), L2 = weekLabel(s2, a2);
@@ -2133,16 +2174,16 @@ function renderComparativa(w1, w2, s1, a1, s2, a2) {
       <th style="color:var(--green)">Venta A</th>
       <th style="color:var(--blue)">Venta B</th>
       <th>Var%</th>
-      <th>Desc A</th>
-      <th>Desc B</th>
+      <th style="color:var(--amber)">Gastos A</th>
+      <th style="color:var(--amber)">Gastos B</th>
     </tr></thead><tbody>`;
 
   days.forEach((day, pos) => {
     const d1 = m1[pos], d2 = m2[pos];
     const v1 = parseFloat(d1?.ventaTotal)||0, v2 = parseFloat(d2?.ventaTotal)||0;
-    const desc1 = parseFloat(d1?.descuadre)||0, desc2 = parseFloat(d2?.descuadre)||0;
-    const p = pct(v1, v2);
-    const dayB = new Date(st2); dayB.setDate(st2.getDate() + pos);
+    const g1 = Math.abs(parseFloat(d1?.pagos)||0), g2 = Math.abs(parseFloat(d2?.pagos)||0);
+    const p  = pct(v1, v2);
+    const dayB = new Date(st2.getFullYear(), st2.getMonth(), st2.getDate() + pos, 12);
 
     html += `<tr>
       <td style="text-align:left;font-size:11px;white-space:nowrap">
@@ -2152,8 +2193,8 @@ function renderComparativa(w1, w2, s1, a1, s2, a2) {
       <td style="font-weight:${d1?'700':'400'};color:${d1?'var(--green)':'var(--muted)'}">${d1?mxn(v1):'—'}</td>
       <td style="font-weight:${d2?'700':'400'};color:${d2?'var(--blue)':'var(--muted)'}">${d2?mxn(v2):'—'}</td>
       <td class="${aClass(p)}">${arrow(p)}</td>
-      <td style="font-size:11px;color:${desc1>=0?'var(--green)':desc1<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${d1?mxn(desc1,true):'—'}</td>
-      <td style="font-size:11px;color:${desc2>=0?'var(--green)':desc2<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${d2?mxn(desc2,true):'—'}</td>
+      <td style="color:${d1?'var(--amber)':'var(--muted)'}">${d1?mxn(-g1):'—'}</td>
+      <td style="color:${d2?'var(--amber)':'var(--muted)'}">${d2?mxn(-g2):'—'}</td>
     </tr>`;
   });
 
@@ -2163,8 +2204,8 @@ function renderComparativa(w1, w2, s1, a1, s2, a2) {
     <td style="color:var(--green)">${mxn(totV1)}</td>
     <td style="color:var(--blue)">${mxn(totV2)}</td>
     <td class="${aClass(totPct)}">${arrow(totPct)}</td>
-    <td style="color:${totD1>=0?'var(--green)':totD1<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${mxn(totD1,true)}</td>
-    <td style="color:${totD2>=0?'var(--green)':totD2<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${mxn(totD2,true)}</td>
+    <td style="color:var(--amber)">${mxn(-totP1)}</td>
+    <td style="color:var(--amber)">${mxn(-totP2)}</td>
   </tr></tfoot></table></div>`;
 
   $('comparativaContent').innerHTML = html;
@@ -2177,33 +2218,59 @@ function onAnalisPeriodoChange() {
   $('analisRangoDates').style.display = $('analisPeriodo').value === 'rango' ? 'flex' : 'none';
 }
 
+function fillAnalisisWeeks() {
+  const sel = $('analisSemana');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = APP.semanasList.map(w =>
+    `<option value="${w.semana}_${w.año}">${weekLabel(w.semana, w.año)}</option>`
+  ).join('');
+  if (cur) sel.value = cur;
+  // default = semana actual
+  if (!sel.value && APP.semanaAct) {
+    const v = `${APP.semanaAct}_${APP.añoAct}`;
+    if (sel.querySelector(`option[value="${v}"]`)) sel.value = v;
+  }
+}
+
+function onAnalisTipoChange() {
+  const t = $('analisTipo').value;
+  ['SemPanel','MesPanel','AnoPanel','RangoPanel'].forEach(s =>
+    $('anal' + s).style.display = 'none'
+  );
+  $('anal' + { semana:'SemPanel', mes:'MesPanel', año:'AnoPanel', rango:'RangoPanel' }[t]).style.display = '';
+}
+
 async function loadAnalisis() {
   if (!APP.tiendaAct) { toast('Selecciona una tienda', 'err'); return; }
 
-  const periodo = $('analisPeriodo').value;
-  const now     = new Date();
+  const tipo    = $('analisTipo').value;
   const payload = { tienda: APP.tiendaAct, limitDescuadre: CONFIG.DESC_LIMIT };
 
-  if (periodo === 'semana' && APP.semanaAct) {
-    // Pasar rango de fechas exacto en vez de solo semana, para evitar mezcla de años
-    const { start, end } = weekDateRange(APP.semanaAct, APP.añoAct);
+  if (tipo === 'semana') {
+    const val = $('analisSemana').value;
+    if (!val) { toast('Selecciona una semana', 'err'); return; }
+    const [sem, ano] = val.split('_').map(Number);
+    const { start, end } = weekDateRange(sem, ano);
     payload.fechaInicio = `${start.getFullYear()}-${padZ(start.getMonth()+1)}-${padZ(start.getDate())}`;
     payload.fechaFin    = `${end.getFullYear()}-${padZ(end.getMonth()+1)}-${padZ(end.getDate())}`;
-    payload.semana = APP.semanaAct;
-  } else if (periodo === 'mes') {
-    const d1 = new Date(now.getFullYear(), now.getMonth(), 1);
-    const d2 = new Date(now.getFullYear(), now.getMonth()+1, 0);
-    payload.fechaInicio = d1.toISOString().split('T')[0];
-    payload.fechaFin    = d2.toISOString().split('T')[0];
-  } else if (periodo === 'año') {
-    payload.fechaInicio = `${now.getFullYear()}-01-01`;
-    payload.fechaFin    = `${now.getFullYear()}-12-31`;
-  } else if (periodo === 'rango') {
+    payload.semana = sem;
+  } else if (tipo === 'mes') {
+    const val = $('analisMes').value; // "YYYY-MM"
+    if (!val) { toast('Selecciona un mes', 'err'); return; }
+    const [y, m] = val.split('-').map(Number);
+    const last = new Date(y, m, 0).getDate();
+    payload.fechaInicio = `${y}-${padZ(m)}-01`;
+    payload.fechaFin    = `${y}-${padZ(m)}-${padZ(last)}`;
+  } else if (tipo === 'año') {
+    const y = parseInt($('analisAno').value);
+    if (!y) { toast('Selecciona un año', 'err'); return; }
+    payload.fechaInicio = `${y}-01-01`;
+    payload.fechaFin    = `${y}-12-31`;
+  } else {
     payload.fechaInicio = $('analisDesde').value;
     payload.fechaFin    = $('analisHasta').value;
-    if (!payload.fechaInicio || !payload.fechaFin) {
-      toast('Completa el rango de fechas', 'err'); return;
-    }
+    if (!payload.fechaInicio || !payload.fechaFin) { toast('Completa el rango', 'err'); return; }
   }
 
   loading(true, 'Analizando…');
@@ -2439,43 +2506,71 @@ function etiquetaPeriodo(periodo, semana, año) {
   return 'RANGO';
 }
 
-function onWAPeriodoChange() {
-  const v = $('waPeriodo').value;
-  $('waRangoDates').style.display = v === 'rango' ? 'flex' : 'none';
+function fillWAWeeks() {
+  const sel = $('waSemana');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— seleccionar —</option>' +
+    APP.semanasList.map(w =>
+      `<option value="${w.semana}_${w.año}">${weekLabel(w.semana, w.año)}</option>`
+    ).join('');
+  if (cur) sel.value = cur;
+  if (!sel.value && APP.semanaAct) {
+    const v = `${APP.semanaAct}_${APP.añoAct}`;
+    if (sel.querySelector(`option[value="${v}"]`)) sel.value = v;
+  }
 }
+
+function fillAnoSelects() {
+  const años = [...new Set(APP.semanasList.map(w => w.año))].sort((a,b) => b-a);
+  const opts = años.map(y => `<option value="${y}">${y}</option>`).join('');
+  if ($('analisAno')) $('analisAno').innerHTML = opts;
+  if ($('waAno'))     $('waAno').innerHTML     = opts;
+}
+
+function onWATipoChange() {
+  const t = $('waTipo').value;
+  ['SemPanel','MesPanel','AnoPanel','RangoPanel'].forEach(s =>
+    $('wa' + s).style.display = 'none'
+  );
+  $('wa' + { semana:'SemPanel', mes:'MesPanel', año:'AnoPanel', rango:'RangoPanel' }[t]).style.display = '';
+}
+
+function onWAPeriodoChange() {} // legacy no-op
 
 async function generarReporteWA() {
   if (!APP.tiendaAct) { toast('Selecciona una tienda', 'err'); return; }
 
-  const periodo = $('waPeriodo').value;
-  const now     = new Date();
-  let data = [];
-  let etiqueta = '';
+  const tipo = $('waTipo').value;
+  let data = [], etiqueta = '', semWA = null, anoWA = null;
 
-  if (periodo === 'semana') {
-    if (!APP.semanaAct) { toast('Selecciona una semana', 'err'); return; }
-    let wd = APP.weekData;
-    if (!wd.length) {
-      loading(true, 'Cargando datos…');
-      const r = await api('getWeekData', { tienda: APP.tiendaAct, semana: APP.semanaAct, año: APP.añoAct });
-      loading(false);
-      if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
-      wd = r.data;
-    }
-    data = wd;
-    etiqueta = `SEMANA ${APP.semanaAct}`;
+  if (tipo === 'semana') {
+    const val = $('waSemana').value;
+    if (!val) { toast('Selecciona una semana', 'err'); return; }
+    const [sem, ano] = val.split('_').map(Number);
+    semWA = sem; anoWA = ano;
+    loading(true, 'Cargando datos…');
+    const r = await api('getWeekData', { tienda: APP.tiendaAct, semana: sem, año: ano });
+    loading(false);
+    if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+    data = r.data;
+    etiqueta = `SEMANA ${sem} / ${ano}`;
 
   } else {
-    // Para mes/año/rango usamos getAnalysis para obtener los gastos acumulados
     const payload = { tienda: APP.tiendaAct };
-    if (periodo === 'mes') {
-      payload.fechaInicio = `${now.getFullYear()}-${padZ(now.getMonth()+1)}-01`;
-      payload.fechaFin    = `${now.getFullYear()}-${padZ(now.getMonth()+1)}-${padZ(new Date(now.getFullYear(), now.getMonth()+1, 0).getDate())}`;
-      etiqueta = `MES ${MESES_CORTO[now.getMonth()+1].toUpperCase()} ${now.getFullYear()}`;
-    } else if (periodo === 'año') {
-      payload.fechaInicio = `${now.getFullYear()}-01-01`;
-      payload.fechaFin    = `${now.getFullYear()}-12-31`;
-      etiqueta = `AÑO ${now.getFullYear()}`;
+    if (tipo === 'mes') {
+      const val = $('waMes').value;
+      if (!val) { toast('Selecciona un mes', 'err'); return; }
+      const [y, m] = val.split('-').map(Number);
+      payload.fechaInicio = `${y}-${padZ(m)}-01`;
+      payload.fechaFin    = `${y}-${padZ(m)}-${padZ(new Date(y, m, 0).getDate())}`;
+      etiqueta = `MES ${MESES_CORTO[m].toUpperCase()} ${y}`;
+    } else if (tipo === 'año') {
+      const y = parseInt($('waAno').value);
+      if (!y) { toast('Selecciona un año', 'err'); return; }
+      payload.fechaInicio = `${y}-01-01`;
+      payload.fechaFin    = `${y}-12-31`;
+      etiqueta = `AÑO ${y}`;
     } else {
       payload.fechaInicio = $('waDesde').value;
       payload.fechaFin    = $('waHasta').value;
