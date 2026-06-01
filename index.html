@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Cortes Azalea">
   <title>Cortes de Caja · Flor de Azalea</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 /* ====================================================
    VARIABLES Y RESET
@@ -671,7 +672,7 @@ a { color: var(--blue); }
           <div id="loyverseDescRef" style="display:none;font-size:10px;color:var(--muted);margin-top:4px"></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Efectivo Real</div>
+          <div class="kpi-label">Efectivo Total</div>
           <div class="kpi-value" id="kpiEfectivo">$0.00</div>
         </div>
       </div>
@@ -754,7 +755,7 @@ a { color: var(--blue); }
       <!-- Filtros -->
       <div class="card">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div class="field" style="flex:1">
+          <div class="field" style="flex:1;margin-bottom:0">
             <label>Período</label>
             <select id="analisPeriodo" onchange="onAnalisPeriodoChange()">
               <option value="semana">Esta semana</option>
@@ -764,19 +765,39 @@ a { color: var(--blue); }
             </select>
           </div>
         </div>
-        <div id="analisRangoDates" class="hidden" style="display:none;gap:8px;flex-wrap:wrap">
-          <div class="field" style="flex:1">
+        <div id="analisRangoDates" style="display:none;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <div class="field" style="flex:1;margin-bottom:0">
             <label>Desde</label>
             <input type="date" id="analisDesde">
           </div>
-          <div class="field" style="flex:1">
+          <div class="field" style="flex:1;margin-bottom:0">
             <label>Hasta</label>
             <input type="date" id="analisHasta">
           </div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadAnalisis()" style="width:auto">
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalisis()" style="width:auto;margin-top:10px">
           🔍 Analizar
         </button>
+      </div>
+
+      <!-- Gráfica de tendencia -->
+      <div class="card" id="analisisChartCard" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <strong style="font-size:13px">📈 Tendencia</strong>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" id="granDia"    onclick="setGranularity('dia')">Día</button>
+            <button class="btn btn-secondary btn-sm" id="granSemana" onclick="setGranularity('semana')">Semana</button>
+            <button class="btn btn-secondary btn-sm" id="granMes"    onclick="setGranularity('mes')">Mes</button>
+          </div>
+        </div>
+        <div style="position:relative;height:220px">
+          <canvas id="analisisChart"></canvas>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:11px">
+          <span style="color:#3fb950">■ Venta Total</span>
+          <span style="color:#e3b341">■ Gastos</span>
+          <span style="color:#58a6ff">— Efectivo Total</span>
+        </div>
       </div>
 
       <!-- Buscador de proveedores -->
@@ -1445,7 +1466,7 @@ function calcCuadre() {
   $('kpiPagos').textContent    = mxn(-pagos);
   $('kpiVenta').textContent    = mxn(ventaTotal);
   $('kpiDesc').textContent     = mxn(descuadre, true);
-  $('kpiEfectivo').textContent = mxn(efectivo);
+  $('kpiEfectivo').textContent = mxn(efectivo - fondo); // efectivo total = efectivo real − fondo
 
   const dc = $('kpiDescCard');
   dc.className = 'kpi-card';
@@ -1640,7 +1661,7 @@ function textoDia(d, tiendaNombre) {
   t += `*Descuadre*\n${mxn(d.descuadre, true)}\n\n`;
   t += `*Pagos*\n${mxn(d.pagos)}\n`;
   t += `*Venta total*\n${mxn(d.ventaTotal)}\n`;
-  t += `*Efectivo real*\n${mxn(d.efectivoReal)}\n`;
+  t += `*Efectivo total*\n${mxn(d.efectivoReal - (d.fondo || 0))}\n`;
   const gs = (d.gastos || []).filter(g => g.nombre);
   if (gs.length) {
     t += `\n*Depósitos / Salida*\n`;
@@ -1652,8 +1673,7 @@ function textoDia(d, tiendaNombre) {
 function copiarTextoDia(idx) {
   const d = APP.weekData[idx];
   if (!d) return;
-  const tiendaNombre = APP.tiendaAct.replace(/loncher[ií]a flor de azalea\s*-\s*/i,'').trim();
-  const txt = textoDia(d, tiendaNombre);
+  const txt = textoDia(d, APP.tiendaAct);
   navigator.clipboard.writeText(txt).then(() => toast('📋 Copiado', 'ok')).catch(() => {
     const ta = document.createElement('textarea');
     ta.value = txt; document.body.appendChild(ta); ta.select();
@@ -1679,11 +1699,11 @@ function renderSemanaTab() {
   data.forEach(d => {
     totVenta    += parseFloat(d.ventaTotal)   || 0;
     totPagos    += parseFloat(d.pagos)        || 0;
-    totEfectivo += parseFloat(d.efectivoReal) || 0;
+    totEfectivo += (parseFloat(d.efectivoReal) - parseFloat(d.fondo || 0)) || 0;
     totDesc     += parseFloat(d.descuadre)    || 0;
   });
 
-  const tiendaNombre = APP.tiendaAct.replace(/loncher[ií]a flor de azalea\s*-\s*/i,'').trim();
+  const tiendaNombre = APP.tiendaAct; // nombre completo
 
   let html = `
     <div class="semana-totals">
@@ -1741,8 +1761,8 @@ function renderSemanaTab() {
             <div style="font-weight:800;color:var(--green)">${mxn(d.ventaTotal)}</div>
           </div>
           <div style="text-align:center">
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Efectivo</div>
-            <div style="font-weight:800">${mxn(d.efectivoReal)}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Ef. Total</div>
+            <div style="font-weight:800">${mxn(d.efectivoReal - (d.fondo || 0))}</div>
           </div>
           <div style="text-align:center">
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Pagos</div>
@@ -1766,7 +1786,7 @@ function renderSemanaTab() {
   resumenTxt += `*Descuadre*\n${mxn(totDesc,true)}\n\n`;
   resumenTxt += `*Pagos*\n${mxn(totPagos)}\n`;
   resumenTxt += `*Venta total*\n${mxn(totVenta)}\n`;
-  resumenTxt += `*Efectivo real*\n${mxn(totEfectivo)}\n`;
+  resumenTxt += `*Efectivo total*\n${mxn(totEfectivo)}\n`;
   resumenTxt += `\n*RESUMEN GASTOS SEMANA ${APP.semanaAct}*\nTotal general:\n${mxn(-totGasto)}\n`;
   WA_CAT_ORDER.forEach(cat => {
     const amt = grouped[cat]||0;
@@ -1870,7 +1890,7 @@ function calcEditDia() {
   const desc = vt - ventasRef;                 // siempre recalculado
 
   $('editKpiPagos').textContent    = mxn(-pags);
-  $('editKpiEfectivo').textContent = mxn(efReal);
+  $('editKpiEfectivo').textContent = mxn(efReal - fondo); // efectivo total = efectivo real − fondo
   $('editKpiVenta').textContent    = mxn(vt);
   $('editKpiDesc').textContent     = mxn(desc, true);
 
@@ -2055,75 +2075,97 @@ async function loadComparativa() {
 
 function renderComparativa(w1, w2, s1, a1, s2, a2) {
   const days = daysOfWeek(s1, a1, APP.tiendaAct);
-
-  // Mapeamos por posición semanal (lunes=0 ... domingo=6) para que las fechas no importen
-  const mkMap = (arr) => {
+  const mkMap = arr => {
     const m = {};
-    arr.forEach(d => {
-      const pos = (new Date(d.año, d.mes-1, d.dia).getDay() + 6) % 7;
-      m[pos] = d;
-    });
+    arr.forEach(d => { m[(new Date(d.año, d.mes-1, d.dia).getDay() + 6) % 7] = d; });
     return m;
   };
   const m1 = mkMap(w1), m2 = mkMap(w2);
-
   const { start: st2 } = weekDateRange(s2, a2);
-  const fmtD = d => `${d.getDate()} ${MESES_CORTO[d.getMonth()+1]}`;
 
+  let totV1=0, totV2=0, totD1=0, totD2=0, totP1=0, totP2=0, totE1=0, totE2=0;
+  days.forEach((day, pos) => {
+    const d1 = m1[pos], d2 = m2[pos];
+    totV1 += parseFloat(d1?.ventaTotal)||0;  totV2 += parseFloat(d2?.ventaTotal)||0;
+    totD1 += parseFloat(d1?.descuadre)||0;   totD2 += parseFloat(d2?.descuadre)||0;
+    totP1 += Math.abs(parseFloat(d1?.pagos)||0); totP2 += Math.abs(parseFloat(d2?.pagos)||0);
+    totE1 += (parseFloat(d1?.efectivoReal)||0) - (parseFloat(d1?.fondo)||0);
+    totE2 += (parseFloat(d2?.efectivoReal)||0) - (parseFloat(d2?.fondo)||0);
+  });
+
+  const varV = pct(totV1, totV2);
+  const L1 = weekLabel(s1, a1), L2 = weekLabel(s2, a2);
+  const arrow = v => v === null ? '—' : (parseFloat(v) >= 0 ? '↑' : '↓') + Math.abs(v) + '%';
+  const aClass = v => v === null ? 'pct-neu' : parseFloat(v) >= 0 ? 'pct-pos' : 'pct-neg';
+
+  // ── Tarjetas de resumen ──────────────────────────────────────────
   let html = `
-    <div style="overflow-x:auto">
-    <table class="comp-table">
-      <thead><tr>
-        <th class="dia-name">Día</th>
-        <th>Sem ${s1}/${a1}</th>
-        <th>Sem ${s2}/${a2}</th>
-        <th>Var.%</th>
-        <th>Desc. A</th>
-        <th>Desc. B</th>
-      </tr></thead><tbody>`;
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="kpi-card green" style="text-align:left">
+        <div class="kpi-label" style="margin-bottom:6px">A · ${L1}</div>
+        <div style="font-size:17px;font-weight:800;color:var(--green)">${mxn(totV1)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;display:flex;flex-direction:column;gap:2px">
+          <span>Gastos: ${mxn(-totP1)}</span>
+          <span>Ef. Total: ${mxn(totE1)}</span>
+          <span>Descuadre: <span style="color:${totD1>=0?'var(--green)':totD1<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${mxn(totD1,true)}</span></span>
+        </div>
+      </div>
+      <div class="kpi-card blue" style="text-align:left">
+        <div class="kpi-label" style="margin-bottom:6px">B · ${L2}</div>
+        <div style="font-size:17px;font-weight:800;color:var(--blue)">${mxn(totV2)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;display:flex;flex-direction:column;gap:2px">
+          <span>Gastos: ${mxn(-totP2)}</span>
+          <span>Ef. Total: ${mxn(totE2)}</span>
+          <span>Descuadre: <span style="color:${totD2>=0?'var(--green)':totD2<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${mxn(totD2,true)}</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="kpi-card ${aClass(varV)}" style="text-align:center;margin-bottom:14px;padding:12px">
+      <div class="kpi-label">A vs B — Variación en Ventas</div>
+      <div class="kpi-value" style="font-size:24px">${arrow(varV)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">${mxn(totV1 - totV2, true)} diferencia</div>
+    </div>`;
 
-  let totV1=0, totV2=0, totD1=0, totD2=0;
+  // ── Tabla día a día ──────────────────────────────────────────────
+  html += `<div style="overflow-x:auto"><table class="comp-table">
+    <thead><tr>
+      <th style="text-align:left">Día</th>
+      <th style="color:var(--green)">Venta A</th>
+      <th style="color:var(--blue)">Venta B</th>
+      <th>Var%</th>
+      <th>Desc A</th>
+      <th>Desc B</th>
+    </tr></thead><tbody>`;
 
   days.forEach((day, pos) => {
     const d1 = m1[pos], d2 = m2[pos];
-    const v1n = parseFloat(d1?.ventaTotal) || 0;
-    const v2n = parseFloat(d2?.ventaTotal) || 0;
-    const p   = pct(v1n, v2n);
-    const desc1 = parseFloat(d1?.descuadre) || 0;
-    const desc2 = parseFloat(d2?.descuadre) || 0;
-
-    totV1 += v1n; totV2 += v2n;
-    totD1 += desc1; totD2 += desc2;
-
-    const pctClass = p === null ? 'pct-neu' : (parseFloat(p) >= 0 ? 'pct-pos' : 'pct-neg');
-
-    // Fecha semana B en la misma posición relativa
+    const v1 = parseFloat(d1?.ventaTotal)||0, v2 = parseFloat(d2?.ventaTotal)||0;
+    const desc1 = parseFloat(d1?.descuadre)||0, desc2 = parseFloat(d2?.descuadre)||0;
+    const p = pct(v1, v2);
     const dayB = new Date(st2); dayB.setDate(st2.getDate() + pos);
-    const lblA = `${DIAS_NOMBRE[day.getDay()]} ${fmtD(day)}`;
-    const lblB = fmtD(dayB);
 
     html += `<tr>
-      <td class="dia-name" style="font-size:11px">${lblA}<br><span style="color:var(--muted)">${lblB}</span></td>
-      <td>${d1 ? mxn(v1n) : '—'}</td>
-      <td>${d2 ? mxn(v2n) : '—'}</td>
-      <td class="${pctClass}">${p !== null ? p + '%' : '—'}</td>
-      <td style="color:${desc1<CONFIG.DESC_LIMIT?'var(--red)':desc1>=0?'var(--green)':'var(--amber)'}">${d1?mxn(desc1,true):'—'}</td>
-      <td style="color:${desc2<CONFIG.DESC_LIMIT?'var(--red)':desc2>=0?'var(--green)':'var(--amber)'}">${d2?mxn(desc2,true):'—'}</td>
+      <td style="text-align:left;font-size:11px;white-space:nowrap">
+        <strong>${DIAS_NOMBRE[day.getDay()]}</strong>
+        <div style="color:var(--muted)">${day.getDate()}/${MESES_CORTO[day.getMonth()+1]} · ${dayB.getDate()}/${MESES_CORTO[dayB.getMonth()+1]}</div>
+      </td>
+      <td style="font-weight:${d1?'700':'400'};color:${d1?'var(--green)':'var(--muted)'}">${d1?mxn(v1):'—'}</td>
+      <td style="font-weight:${d2?'700':'400'};color:${d2?'var(--blue)':'var(--muted)'}">${d2?mxn(v2):'—'}</td>
+      <td class="${aClass(p)}">${arrow(p)}</td>
+      <td style="font-size:11px;color:${desc1>=0?'var(--green)':desc1<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${d1?mxn(desc1,true):'—'}</td>
+      <td style="font-size:11px;color:${desc2>=0?'var(--green)':desc2<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${d2?mxn(desc2,true):'—'}</td>
     </tr>`;
   });
 
   const totPct = pct(totV1, totV2);
-  const tpClass = totPct===null?'pct-neu':(parseFloat(totPct)>=0?'pct-pos':'pct-neg');
-
-  html += `</tbody><tfoot><tr style="font-weight:700;border-top:2px solid var(--border)">
-    <td class="dia-name">TOTAL</td>
-    <td>${mxn(totV1)}</td>
-    <td>${mxn(totV2)}</td>
-    <td class="${tpClass}">${totPct!==null?totPct+'%':'—'}</td>
-    <td style="color:${totD1>=0?'var(--green)':'var(--red)'}">${mxn(totD1,true)}</td>
-    <td style="color:${totD2>=0?'var(--green)':'var(--red)'}">${mxn(totD2,true)}</td>
-  </tr></tfoot>
-  </table></div>`;
+  html += `</tbody><tfoot><tr style="font-weight:800;background:var(--surface2)">
+    <td style="text-align:left">TOTAL</td>
+    <td style="color:var(--green)">${mxn(totV1)}</td>
+    <td style="color:var(--blue)">${mxn(totV2)}</td>
+    <td class="${aClass(totPct)}">${arrow(totPct)}</td>
+    <td style="color:${totD1>=0?'var(--green)':totD1<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${mxn(totD1,true)}</td>
+    <td style="color:${totD2>=0?'var(--green)':totD2<CONFIG.DESC_LIMIT?'var(--red)':'var(--amber)'}">${mxn(totD2,true)}</td>
+  </tr></tfoot></table></div>`;
 
   $('comparativaContent').innerHTML = html;
 }
@@ -2132,9 +2174,7 @@ function renderComparativa(w1, w2, s1, a1, s2, a2) {
 // ANÁLISIS
 // ----------------------------------------------------------------
 function onAnalisPeriodoChange() {
-  const v = $('analisPeriodo').value;
-  const el = $('analisRangoDates');
-  el.style.display = v === 'rango' ? 'flex' : 'none';
+  $('analisRangoDates').style.display = $('analisPeriodo').value === 'rango' ? 'flex' : 'none';
 }
 
 async function loadAnalisis() {
@@ -2171,7 +2211,71 @@ async function loadAnalisis() {
   loading(false);
 
   if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
+  APP._analisisDailyData = r.dailyData || [];
+  APP._analisisGranularity = APP._analisisGranularity || 'dia';
   renderAnalisis(r);
+  if (r.dailyData && r.dailyData.length) {
+    $('analisisChartCard').style.display = '';
+    renderAnalisisChart(r.dailyData, APP._analisisGranularity);
+  } else {
+    $('analisisChartCard').style.display = 'none';
+  }
+}
+
+let _chartInstance = null;
+
+function setGranularity(g) {
+  APP._analisisGranularity = g;
+  ['dia','semana','mes'].forEach(k => {
+    const btn = $('gran' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (btn) btn.className = 'btn btn-sm ' + (k === g ? 'btn-primary' : 'btn-secondary');
+  });
+  if (APP._analisisDailyData) renderAnalisisChart(APP._analisisDailyData, g);
+}
+
+function renderAnalisisChart(dailyData, gran) {
+  const agg = {};
+  dailyData.forEach(d => {
+    const key = gran === 'dia'    ? d.fecha
+              : gran === 'semana' ? `${d.año}-S${String(d.semana).padStart(2,'0')}`
+              :                    `${d.año}-${String(d.mes).padStart(2,'0')}`;
+    if (!agg[key]) agg[key] = { venta:0, gastos:0, efectivo:0 };
+    agg[key].venta   += d.venta;
+    agg[key].gastos  += Math.abs(d.pagos);
+    agg[key].efectivo += d.efectivo - d.fondo;
+  });
+
+  const labels   = Object.keys(agg).sort();
+  const ventas   = labels.map(k => agg[k].venta);
+  const gastos   = labels.map(k => agg[k].gastos);
+  const efectivos = labels.map(k => agg[k].efectivo);
+
+  const ctx = $('analisisChart').getContext('2d');
+  if (_chartInstance) { _chartInstance.destroy(); _chartInstance = null; }
+
+  _chartInstance = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        { type:'bar',  label:'Venta Total',   data: ventas,    backgroundColor:'rgba(63,185,80,.65)',  borderColor:'#3fb950', borderWidth:1, order:2 },
+        { type:'bar',  label:'Gastos',        data: gastos,    backgroundColor:'rgba(227,179,65,.65)', borderColor:'#e3b341', borderWidth:1, order:2 },
+        { type:'line', label:'Efectivo Total', data: efectivos, borderColor:'#58a6ff', backgroundColor:'rgba(88,166,255,.1)',
+          borderWidth:2, pointRadius:3, fill:false, tension:.3, order:1 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ display:false },
+        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${mxn(c.raw)}` } }
+      },
+      scales:{
+        x:{ ticks:{ color:'#8b949e', maxRotation:45, font:{size:10} }, grid:{ color:'#30363d' } },
+        y:{ ticks:{ color:'#8b949e', callback: v => '$'+(v/1000).toFixed(0)+'k', font:{size:10} }, grid:{ color:'#30363d' } }
+      }
+    }
+  });
+  setGranularity(gran); // update button styles
 }
 
 function renderAnalisis(r) {
@@ -2394,7 +2498,7 @@ async function generarReporteWA() {
     texto += `*Descuadre*\n${mxn(t.descuadre, true)}\n\n`;
     texto += `*Pagos*\n${mxn(t.pagos)}\n`;
     texto += `*Venta total*\n${mxn(t.venta)}\n`;
-    texto += `*Efectivo real*\n${mxn(t.efectivo)}\n`;
+    texto += `*Efectivo total*\n${mxn(t.efectivo - (t.fondo || 0))}\n`;
     texto += `\n*RESUMEN GASTOS ${etiqueta}*\nTotal general:\n${mxn(-totGasto)}\n`;
     WA_CAT_ORDER.forEach(cat => {
       const amt = grouped[cat] || 0;
@@ -2413,7 +2517,6 @@ async function generarReporteWA() {
 
   if (!data.length) { toast('No hay datos para este período', 'err'); return; }
 
-  const tiendaNombre = APP.tiendaAct.replace(/loncher[ií]a flor de azalea\s*-\s*/i, '').trim();
   let texto = '';
   let totV=0, totP=0, totE=0, totD=0;
   const catGlobal = {};
@@ -2423,14 +2526,15 @@ async function generarReporteWA() {
   data.forEach(d => {
     const dow = new Date(d.año, d.mes-1, d.dia).getDay();
     const fechaStr = `${DIAS_FULL[dow]} ${d.dia} ${MESES_CORTO[d.mes]} ${d.año}`;
+    const efTotal  = (parseFloat(d.efectivoReal) - parseFloat(d.fondo || 0));
 
-    texto += `~Semana ${d.semana}~  ${tiendaNombre}\n`;
+    texto += `~Semana ${d.semana}~  ${APP.tiendaAct}\n`;
     texto += `_${fechaStr}_\n`;
     texto += `*Fondo de caja anterior*\n$${d.fondo || 500}\n`;
     texto += `*Descuadre*\n${mxn(d.descuadre, true)}\n\n`;
     texto += `*Pagos*\n${mxn(d.pagos)}\n`;
     texto += `*Venta total*\n${mxn(d.ventaTotal)}\n`;
-    texto += `*Efectivo real*\n${mxn(d.efectivoReal)}\n`;
+    texto += `*Efectivo total*\n${mxn(efTotal)}\n`;
 
     if (d.gastos && d.gastos.length) {
       texto += `\n*Salida*\n`;
@@ -2445,7 +2549,7 @@ async function generarReporteWA() {
 
     totV += parseFloat(d.ventaTotal)   || 0;
     totP += parseFloat(d.pagos)        || 0;
-    totE += parseFloat(d.efectivoReal) || 0;
+    totE += efTotal;
     totD += parseFloat(d.descuadre)    || 0;
   });
 
@@ -2454,7 +2558,7 @@ async function generarReporteWA() {
   texto += `*Descuadre*\n${mxn(totD, true)}\n\n`;
   texto += `*Pagos*\n${mxn(totP)}\n`;
   texto += `*Venta total*\n${mxn(totV)}\n`;
-  texto += `*Efectivo real*\n${mxn(totE)}\n`;
+  texto += `*Efectivo total*\n${mxn(totE)}\n`;
 
   // RESUMEN GASTOS con etiquetas limpias y todas las categorías visibles
   const totalGastos = Object.values(catGlobal).reduce((s,v) => s+v, 0);
