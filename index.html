@@ -487,6 +487,23 @@ a { color: var(--blue); }
 }
 
 /* ====================================================
+   GASTO TIPO TOGGLE (del cajón vs olvidado)
+   ==================================================== */
+.gasto-tipo-btn {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 8px;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  color: var(--muted); white-space: nowrap; flex-shrink: 0;
+  transition: var(--trans); line-height: 1.2; text-align: center;
+}
+.gasto-tipo-btn.cajon {
+  background: var(--amber-soft); border-color: var(--amber); color: var(--amber);
+}
+.gasto-tipo-btn.olvidado {
+  background: var(--blue-soft); border-color: var(--blue); color: var(--blue);
+}
+
+/* ====================================================
    CAJA CERRADA NOTE
    ==================================================== */
 .cc-note {
@@ -1273,6 +1290,14 @@ async function onTiendaChange() {
   // Semana actual automática
   onCuadreFechaChange();
   await onSemanaChange();
+
+  // Auto-comparativa: semana actual vs misma semana año pasado
+  if (APP.semanaAct && APP.añoAct) {
+    const valA = `${APP.semanaAct}_${APP.añoAct}`;
+    const valB = `${APP.semanaAct}_${APP.añoAct - 1}`;
+    if (selCmp1.querySelector(`option[value="${valA}"]`)) selCmp1.value = valA;
+    if (selCmp2.querySelector(`option[value="${valB}"]`)) selCmp2.value = valB;
+  }
 }
 
 // ----------------------------------------------------------------
@@ -1328,23 +1353,44 @@ function delGasto(idx) {
 function renderGastoList(containerId, arr, prefix, delFn, changeFn) {
   const container = $(containerId);
   if (!arr.length) { container.innerHTML = ''; return; }
-  container.innerHTML = arr.map((g, i) => `
+  container.innerHTML = arr.map((g, i) => {
+    const esCajon = !!g.fromEfectivo;
+    return `
     <div class="gasto-row">
       <div class="gasto-row-fields">
         <input class="gasto-nombre" placeholder="NOMBRE GASTO"
                value="${esc(g.nombre)}" oninput="onGastoNombre('${prefix}',${i})"
                id="${prefix}_n_${i}">
         <input class="gasto-monto" type="number" placeholder="0.00" step="0.01"
-               value="${g.monto || ''}" oninput="onGastoMonto('${prefix}',${i})"
+               value="${Math.abs(parseFloat(g.monto)||0)||''}" oninput="onGastoMonto('${prefix}',${i})"
                id="${prefix}_m_${i}">
         <select class="gasto-cat" onchange="onGastoCat('${prefix}',${i})"
                 id="${prefix}_c_${i}">
           ${CATS.map(c => `<option value="${c}" ${g.cat===c?'selected':''}>${c}</option>`).join('')}
           <option value="Otro" ${g.cat==='Otro'||!g.cat?'selected':''}>Otro</option>
         </select>
+        <button class="gasto-tipo-btn ${esCajon?'cajon':'olvidado'}"
+                onclick="toggleGastoTipo('${prefix}',${i})"
+                title="${esCajon?'Del cajón: resta al efectivo real, la venta no cambia':'Gasto olvidado: suma a la venta total'}">
+          ${esCajon?'💵 Cajón':'📝 Olvido'}
+        </button>
         <button class="gasto-del" onclick="${delFn.name}(${i})">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function toggleGastoTipo(prefix, idx) {
+  const arr = prefix === 'cuadreGasto' ? APP.cuadreGastos : APP.editGastos;
+  arr[idx].fromEfectivo = !arr[idx].fromEfectivo;
+  renderGastoList(
+    prefix === 'cuadreGasto' ? 'gastoList' : 'editGastoList',
+    arr, prefix,
+    prefix === 'cuadreGasto' ? delGasto : delEditGasto,
+    prefix === 'cuadreGasto' ? calcCuadre : calcEditDia
+  );
+  if (prefix === 'cuadreGasto') calcCuadre();
+  else calcEditDia();
 }
 
 function onGastoNombre(prefix, idx) {
@@ -1373,13 +1419,19 @@ function onGastoCat(prefix, idx) {
 // CUADRE: CÁLCULOS EN VIVO
 // ----------------------------------------------------------------
 function calcCuadre() {
-  const efectivo    = parseFloat($('cuadreEfectivo').value) || 0;
-  const ventasNetas = parseFloat($('cuadreVentasNetas').value) || 0;
-  const fondo       = parseFloat($('cuadreFondo').value) || 0;
-  // Cada monto siempre positivo; sumamos en absoluto para evitar cancelaciones de signo
-  const pagos       = APP.cuadreGastos.reduce((s, g) => s + Math.abs(parseFloat(g.monto) || 0), 0);
-  const ventaTotal  = efectivo + pagos - fondo;
-  const descuadre   = ventaTotal - ventasNetas;
+  const efectivoInput = parseFloat($('cuadreEfectivo').value) || 0;
+  const ventasNetas   = parseFloat($('cuadreVentasNetas').value) || 0;
+  const fondo         = parseFloat($('cuadreFondo').value) || 0;
+
+  const pagos  = APP.cuadreGastos.reduce((s, g) => s + Math.abs(parseFloat(g.monto) || 0), 0);
+  // Gastos "del cajón": ya salieron de la caja DESPUÉS del cierre → restan al efectivo
+  const cajon  = APP.cuadreGastos.reduce((s, g) => g.fromEfectivo ? s + Math.abs(parseFloat(g.monto)||0) : s, 0);
+  const efectivo   = efectivoInput - cajon;   // efectivo real ajustado
+  const ventaTotal = efectivo + pagos - fondo;
+  // = efectivoInput - cajon + pagos - fondo
+  // Cuando se añade gasto "cajón": cajon++ y pagos++ por igual → venta sin cambio ✓
+  // Cuando se añade gasto "olvidado": solo pagos++ → venta sube ✓
+  const descuadre  = ventaTotal - ventasNetas;
 
   $('kpiPagos').textContent    = mxn(-pagos);
   $('kpiVenta').textContent    = mxn(ventaTotal);
@@ -1416,7 +1468,9 @@ async function guardarCuadre() {
 
   const gastos   = APP.cuadreGastos.filter(g => g.nombre || g.monto);
   const pagos    = gastos.reduce((s, g) => s - Math.abs(parseFloat(g.monto) || 0), 0);
-  const venta    = efectivo + Math.abs(pagos) - fondo;
+  const cajon    = gastos.reduce((s, g) => g.fromEfectivo ? s + Math.abs(parseFloat(g.monto)||0) : s, 0);
+  const efectivoReal = efectivo - cajon; // ajustado por gastos del cajón post-cierre
+  const venta    = efectivoReal + Math.abs(pagos) - fondo;
   const desc     = venta - ventasN;
 
   if (fondo === 0) {
@@ -1431,7 +1485,7 @@ async function guardarCuadre() {
     descuadre:    desc,
     pagos:        pagos,
     ventaTotal:   venta,
-    efectivoReal: efectivo,
+    efectivoReal: efectivoReal,
     gastos:       gastos.map(g => ({
       nombre: g.nombre.toUpperCase(),
       monto:  -Math.abs(parseFloat(g.monto) || 0),
@@ -1739,7 +1793,9 @@ function openEditDia(dObj, dia, mes, año) {
     $('editDiaAbierto').value  = dObj.abierto || '';
     $('editDiaFondo').value    = Math.abs(dObj.fondo) || 500;
     $('editDiaEfectivo').value = Math.abs(dObj.efectivoReal) || '';
-    $('editDiaVentas').value   = '';
+    // Ventas netas = venta total - descuadre (back-calculado desde lo guardado)
+    const vn = (parseFloat(dObj.ventaTotal)||0) - (parseFloat(dObj.descuadre)||0);
+    $('editDiaVentas').value   = vn > 0 ? vn.toFixed(2) : '';
     APP.editGastos = (dObj.gastos || []).map(g => ({
       nombre: g.nombre || '',
       monto:  Math.abs(parseFloat(g.monto) || 0),
@@ -1771,9 +1827,12 @@ function calcEditDia() {
   const ef   = parseFloat($('editDiaEfectivo').value) || 0;
   const vn   = parseFloat($('editDiaVentas').value)   || 0;
   const fondo = parseFloat($('editDiaFondo').value) || 0;
-  const pags = APP.editGastos.reduce((s,g) => s + Math.abs(parseFloat(g.monto)||0), 0);
-  const vt   = ef + pags - fondo;
-  const desc = vn ? vt - vn : (parseFloat(APP.editDiaObj?.descuadre) || 0);
+  const pags  = APP.editGastos.reduce((s,g) => s + Math.abs(parseFloat(g.monto)||0), 0);
+  const cajonE = APP.editGastos.reduce((s,g) => g.fromEfectivo ? s + Math.abs(parseFloat(g.monto)||0) : s, 0);
+  const efReal = ef - cajonE;
+  const vt    = efReal + pags - fondo;
+  const ventasNetasEdit = vn || (parseFloat(APP.editDiaObj?.ventaTotal||0) - parseFloat(APP.editDiaObj?.descuadre||0));
+  const desc  = vn ? vt - vn : (parseFloat(APP.editDiaObj?.descuadre) || 0);
 
   $('editKpiPagos').textContent = mxn(-pags);
   $('editKpiDesc').textContent  = mxn(vn ? desc : null, true);
@@ -1795,7 +1854,9 @@ async function guardarDiaEdit() {
   const fondo2  = parseFloat($('editDiaFondo').value) || 500;
   const gastos  = APP.editGastos.filter(g => g.nombre || g.monto);
   const pagos   = gastos.reduce((s,g) => s - Math.abs(parseFloat(g.monto)||0), 0);
-  const venta   = ef + Math.abs(pagos) - fondo2;
+  const cajon2  = gastos.reduce((s,g) => g.fromEfectivo ? s + Math.abs(parseFloat(g.monto)||0) : s, 0);
+  const efReal2 = ef - cajon2;
+  const venta   = efReal2 + Math.abs(pagos) - fondo2;
   const desc    = vn ? venta - vn : parseFloat(APP.editDiaObj?.descuadre) || 0;
 
   const dateStr  = `${año}-${padZ(mes)}-${padZ(dia)}`;
@@ -1809,7 +1870,7 @@ async function guardarDiaEdit() {
     descuadre:    desc,
     pagos,
     ventaTotal:   venta,
-    efectivoReal: ef,
+    efectivoReal: efReal2,
     gastos: gastos.map(g => ({
       nombre: g.nombre.toUpperCase(),
       monto:  -Math.abs(parseFloat(g.monto)||0),
@@ -1916,6 +1977,17 @@ function fillComparativaSelects() {
   const blank = '<option value="">Seleccionar…</option>';
   $('compSem1').innerHTML = blank + opts;
   $('compSem2').innerHTML = blank + opts;
+
+  // Auto-seleccionar: semana actual (A) vs misma semana del año pasado (B)
+  if (APP.semanaAct && APP.añoAct) {
+    const valA = `${APP.semanaAct}_${APP.añoAct}`;
+    const valB = `${APP.semanaAct}_${APP.añoAct - 1}`;
+    if ($('compSem1').querySelector(`option[value="${valA}"]`)) $('compSem1').value = valA;
+    if ($('compSem2').querySelector(`option[value="${valB}"]`)) {
+      $('compSem2').value = valB;
+      loadComparativa(); // carga automática
+    }
+  }
 }
 
 async function loadComparativa() {
