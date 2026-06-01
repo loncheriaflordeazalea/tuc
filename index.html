@@ -668,6 +668,7 @@ a { color: var(--blue); }
         <div class="kpi-card" id="kpiDescCard">
           <div class="kpi-label">Descuadre</div>
           <div class="kpi-value" id="kpiDesc">$0.00</div>
+          <div id="loyverseDescRef" style="display:none;font-size:10px;color:var(--muted);margin-top:4px"></div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Efectivo Real</div>
@@ -1486,6 +1487,7 @@ async function guardarCuadre() {
     pagos:        pagos,
     ventaTotal:   venta,
     efectivoReal: efectivoReal,
+    ventasNetas:  ventasN,
     gastos:       gastos.map(g => ({
       nombre: g.nombre.toUpperCase(),
       monto:  -Math.abs(parseFloat(g.monto) || 0),
@@ -1514,7 +1516,7 @@ function openLoyverseModal() {
 
 function parseLoyverse(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-  const r = { tienda:'', fecha:null, abierto:'', fondo:500, efectivo:0, ventasNetas:0, gastos:[] };
+  const r = { tienda:'', fecha:null, abierto:'', fondo:500, efectivo:0, descuadreRef:null, ventasNetas:0, gastos:[] };
   const amt = s => parseFloat(String(s).replace(/[$,\s]/g,'')) || 0;
 
   for (let i = 0; i < lines.length; i++) {
@@ -1542,6 +1544,9 @@ function parseLoyverse(text) {
 
     if (/^cantidad de efectivo real/i.test(l) && lines[i+1])
       r.efectivo = amt(lines[i+1]);
+
+    if (/^descuadre$/i.test(l) && lines[i+1])
+      r.descuadreRef = amt(lines[i+1]);
 
     if (/^ventas netas/i.test(l) && lines[i+1] && !lines[i-1].toLowerCase().includes('brutas'))
       r.ventasNetas = amt(lines[i+1]);
@@ -1592,6 +1597,18 @@ function procesarLoyverse() {
   $('cuadreFondo').value        = r.fondo || 500;
   $('cuadreEfectivo').value     = r.efectivo || '';
   $('cuadreVentasNetas').value  = r.ventasNetas || '';
+
+  // Guardar descuadre del POS como referencia (se muestra en la UI)
+  APP._loyverseDesc = r.descuadreRef;
+  const refEl = $('loyverseDescRef');
+  if (refEl) {
+    if (r.descuadreRef !== null) {
+      refEl.textContent = `POS registró: ${mxn(r.descuadreRef, true)}`;
+      refEl.style.display = '';
+    } else {
+      refEl.style.display = 'none';
+    }
+  }
 
   // Gastos
   APP.cuadreGastos = r.gastos;
@@ -1793,8 +1810,10 @@ function openEditDia(dObj, dia, mes, año) {
     $('editDiaAbierto').value  = dObj.abierto || '';
     $('editDiaFondo').value    = Math.abs(dObj.fondo) || 500;
     $('editDiaEfectivo').value = Math.abs(dObj.efectivoReal) || '';
-    // Ventas netas = venta total - descuadre (back-calculado desde lo guardado)
-    const vn = (parseFloat(dObj.ventaTotal)||0) - (parseFloat(dObj.descuadre)||0);
+    // Usar ventasNetas guardado directamente; retrocálculo solo para registros legados
+    const vn = dObj.ventasNetas != null && dObj.ventasNetas !== 0
+      ? dObj.ventasNetas
+      : (parseFloat(dObj.ventaTotal)||0) - (parseFloat(dObj.descuadre)||0);
     $('editDiaVentas').value   = vn > 0 ? vn.toFixed(2) : '';
     APP.editGastos = (dObj.gastos || []).map(g => ({
       nombre: g.nombre || '',
@@ -1871,6 +1890,7 @@ async function guardarDiaEdit() {
     pagos,
     ventaTotal:   venta,
     efectivoReal: efReal2,
+    ventasNetas:  vn,
     gastos: gastos.map(g => ({
       nombre: g.nombre.toUpperCase(),
       monto:  -Math.abs(parseFloat(g.monto)||0),
