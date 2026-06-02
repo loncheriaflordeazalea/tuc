@@ -1566,7 +1566,18 @@ async function guardarCuadre() {
   if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
   toast('✅ Corte guardado correctamente', 'ok');
 
-  // Refrescar semana
+  // Apuntar el selector al la semana recién guardada y refrescar
+  APP.semanaAct = semana;
+  APP.añoAct    = año;
+  const savedKey = `${semana}_${año}`;
+  let opt = $('hdrSemana').querySelector(`option[value="${savedKey}"]`);
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value       = savedKey;
+    opt.textContent = weekLabel(semana, año);
+    $('hdrSemana').insertBefore(opt, $('hdrSemana').firstChild);
+  }
+  $('hdrSemana').value = savedKey;
   await onSemanaChange();
 }
 
@@ -1988,6 +1999,18 @@ async function guardarDiaEdit() {
   if (!r.ok) { toast('Error: ' + r.error, 'err'); return; }
   toast('✅ Día guardado', 'ok');
   closeModal('editDiaModalOverlay');
+
+  APP.semanaAct = semana;
+  APP.añoAct    = año;
+  const savedKey2 = `${semana}_${año}`;
+  let opt2 = $('hdrSemana').querySelector(`option[value="${savedKey2}"]`);
+  if (!opt2) {
+    opt2 = document.createElement('option');
+    opt2.value       = savedKey2;
+    opt2.textContent = weekLabel(semana, año);
+    $('hdrSemana').insertBefore(opt2, $('hdrSemana').firstChild);
+  }
+  $('hdrSemana').value = savedKey2;
   await onSemanaChange();
 }
 
