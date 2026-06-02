@@ -1637,7 +1637,7 @@ function parseLoyverse(text) {
   return r;
 }
 
-function procesarLoyverse() {
+async function procesarLoyverse() {
   const text = $('loyversePaste').value.trim();
   if (!text) { toast('Pega el ticket primero', 'err'); return; }
 
